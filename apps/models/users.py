@@ -1,11 +1,10 @@
 import uuid
-
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
 from django.core.exceptions import ValidationError
-from django.db.models import (
-    CharField, EmailField, UUIDField, BooleanField, TextChoices,
-    DateTimeField, ForeignKey, ImageField, SET_NULL, Model
-)
+from django.db import models
+from django.db.models import SET_NULL, ForeignKey, UUIDField, CharField, EmailField, ImageField, BooleanField, \
+    DateTimeField, Model
+from django.db.models.enums import TextChoices
 
 
 class Branch(Model):
@@ -18,11 +17,9 @@ class Branch(Model):
     def __str__(self):
         return self.name
 
-
 class UserManager(BaseUserManager):
     def create_user(self, phone, password=None, **extra_fields):
-        if not phone:
-            raise ValueError("Phone number is required")
+        if not phone: raise ValueError("Phone number is required")
         user = self.model(phone=phone, **extra_fields)
         user.set_password(password)
         user.save(using=self._db)
@@ -32,14 +29,9 @@ class UserManager(BaseUserManager):
         extra_fields.setdefault("is_staff", True)
         extra_fields.setdefault("is_superuser", True)
         extra_fields.setdefault("role", "admin")
-
-        if extra_fields.get("is_staff") is not True:
-            raise ValidationError("Superuser must have is_staff=True.")
-        if extra_fields.get("is_superuser") is not True:
-            raise ValidationError("Superuser must have is_superuser=True.")
-
+        if extra_fields.get("is_staff") is not True: raise ValidationError("Superuser must have is_staff=True.")
+        if extra_fields.get("is_superuser") is not True: raise ValidationError("Superuser must have is_superuser=True.")
         return self.create_user(phone, password, **extra_fields)
-
 
 class User(AbstractBaseUser, PermissionsMixin):
     class Role(TextChoices):
@@ -56,15 +48,12 @@ class User(AbstractBaseUser, PermissionsMixin):
     role = CharField(max_length=20, choices=Role.choices, default=Role.CASHIER)
     avatar = ImageField(upload_to="avatars/", blank=True, null=True)
     branch = ForeignKey(Branch, on_delete=SET_NULL, null=True, blank=True, related_name='employees')
-
     is_active = BooleanField(default=True)
     is_staff = BooleanField(default=False)
-
     created_at = DateTimeField(auto_now_add=True)
     updated_at = DateTimeField(auto_now=True)
 
     objects = UserManager()
-
     USERNAME_FIELD = "phone"
     REQUIRED_FIELDS = ["first_name", "last_name"]
 
@@ -84,17 +73,11 @@ class User(AbstractBaseUser, PermissionsMixin):
         super().clean()
         if Branch.objects.exists():
             if self.role in [self.Role.CASHIER, self.Role.MANAGER] and not self.branch:
-                raise ValidationError({
-                    "branch": f"{self.get_role_display()} roli uchun filial (branch) tanlanishi shart!"
-                })
+                raise ValidationError({"branch": f"{self.get_role_display()} roli uchun filial (branch) tanlanishi shart!"})
             if self.role == self.Role.ADMIN and self.branch:
-                raise ValidationError({
-                    "branch": "Admin biron bir filialga biriktirilishi mumkin emas (Tizim boshqaruvchisi)!"
-                })
+                raise ValidationError({"branch": "Admin biron bir filialga biriktirilishi mumkin emas!"})
 
     def save(self, *args, **kwargs):
-        if self.is_superuser:
-            self.role = self.Role.ADMIN
-
+        if self.is_superuser: self.role = self.Role.ADMIN
         self.full_clean()
         super().save(*args, **kwargs)
