@@ -1,14 +1,14 @@
-import uuid
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
 from django.core.exceptions import ValidationError
-from django.db import models
-from django.db.models import SET_NULL, ForeignKey, UUIDField, CharField, EmailField, ImageField, BooleanField, \
-    DateTimeField, Model
+from django.db.models import SET_NULL, ForeignKey, CharField, EmailField, ImageField, BooleanField, \
+    DateTimeField
 from django.db.models.enums import TextChoices
 
+from apps.models import BaseModel
+from apps.models import TimeStampedModel
 
-class Branch(Model):
-    id = UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
+class Branch(BaseModel):
     name = CharField(max_length=255)
     address = CharField(max_length=500, blank=True, null=True)
     phone = CharField(max_length=20, blank=True, null=True)
@@ -16,6 +16,7 @@ class Branch(Model):
 
     def __str__(self):
         return self.name
+
 
 class UserManager(BaseUserManager):
     def create_user(self, phone, password=None, **extra_fields):
@@ -33,14 +34,14 @@ class UserManager(BaseUserManager):
         if extra_fields.get("is_superuser") is not True: raise ValidationError("Superuser must have is_superuser=True.")
         return self.create_user(phone, password, **extra_fields)
 
-class User(AbstractBaseUser, PermissionsMixin):
+
+class User(AbstractBaseUser, PermissionsMixin, TimeStampedModel):
     class Role(TextChoices):
         ADMIN = "admin", "Admin"
         OWNER = "owner", "Owner"
         MANAGER = "manager", "Manager"
         CASHIER = "cashier", "Cashier"
 
-    id = UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     phone = CharField(max_length=20, unique=True)
     email = EmailField(blank=True, null=True)
     first_name = CharField(max_length=100)
@@ -50,16 +51,12 @@ class User(AbstractBaseUser, PermissionsMixin):
     branch = ForeignKey(Branch, on_delete=SET_NULL, null=True, blank=True, related_name='employees')
     is_active = BooleanField(default=True)
     is_staff = BooleanField(default=False)
-    created_at = DateTimeField(auto_now_add=True)
-    updated_at = DateTimeField(auto_now=True)
 
     objects = UserManager()
     USERNAME_FIELD = "phone"
     REQUIRED_FIELDS = ["first_name", "last_name"]
 
     class Meta:
-        verbose_name = "User"
-        verbose_name_plural = "Users"
         ordering = ["-created_at"]
 
     def __str__(self):
@@ -73,7 +70,8 @@ class User(AbstractBaseUser, PermissionsMixin):
         super().clean()
         if Branch.objects.exists():
             if self.role in [self.Role.CASHIER, self.Role.MANAGER] and not self.branch:
-                raise ValidationError({"branch": f"{self.get_role_display()} roli uchun filial (branch) tanlanishi shart!"})
+                raise ValidationError(
+                    {"branch": f"{self.get_role_display()} roli uchun filial (branch) tanlanishi shart!"})
             if self.role == self.Role.ADMIN and self.branch:
                 raise ValidationError({"branch": "Admin biron bir filialga biriktirilishi mumkin emas!"})
 

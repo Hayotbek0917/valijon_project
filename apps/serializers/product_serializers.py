@@ -1,15 +1,15 @@
 from rest_framework import serializers
-from django.db import transaction
-from rest_framework.exceptions import ValidationError
 from rest_framework.fields import CharField, JSONField, IntegerField, BooleanField
 from rest_framework.serializers import ModelSerializer
 
 from apps.models.product import Category, Product, Order, OrderItem, Agent, ProductBatch, Expense
 
+
 class CategorySerializer(ModelSerializer):
     class Meta:
         model = Category
         fields = '__all__'
+
 
 class ProductSerializer(ModelSerializer):
     category_name = CharField(source='category.name', read_only=True)
@@ -18,12 +18,15 @@ class ProductSerializer(ModelSerializer):
 
     class Meta:
         model = Product
-        fields = ['id', 'branch', 'branch_name', 'category', 'category_name', 'name', 'barcode', 'selling_price', 'base_price', 'stock', 'min_stock_alert', 'expiration_date', 'is_low_stock']
+        fields = ['id', 'branch', 'branch_name', 'category', 'category_name', 'name', 'barcode', 'selling_price',
+                  'base_price', 'stock', 'min_stock_alert', 'expiration_date', 'is_low_stock']
+
 
 class AgentSerializer(ModelSerializer):
     class Meta:
         model = Agent
         fields = ['id', 'name', 'company', 'phone', 'created_at']
+
 
 class ProductBatchSerializer(ModelSerializer):
     product_name = CharField(source='product.name', read_only=True)
@@ -33,12 +36,15 @@ class ProductBatchSerializer(ModelSerializer):
 
     class Meta:
         model = ProductBatch
-        fields = ['id', 'product', 'product_name', 'category_name', 'batch_number', 'quantity', 'expiration_date', 'days_left', 'status']
+        fields = ['id', 'product', 'product_name', 'category_name', 'batch_number', 'quantity', 'expiration_date',
+                  'days_left', 'status']
+
 
 class ExpenseSerializer(ModelSerializer):
     class Meta:
         model = Expense
         fields = ['id', 'branch', 'title', 'amount', 'date']
+
 
 class OrderItemSerializer(ModelSerializer):
     product_name = CharField(source='product.name', read_only=True)
@@ -48,6 +54,7 @@ class OrderItemSerializer(ModelSerializer):
         model = OrderItem
         fields = ['id', 'product_name', 'barcode', 'quantity', 'selling_price', 'profit']
 
+
 class OrderSerializer(ModelSerializer):
     items = OrderItemSerializer(many=True, read_only=True)
     cashier_name = CharField(source='cashier.full_name', read_only=True)
@@ -55,7 +62,9 @@ class OrderSerializer(ModelSerializer):
 
     class Meta:
         model = Order
-        fields = ['id', 'branch', 'branch_name', 'cashier', 'cashier_name', 'total_amount', 'total_profit', 'items', 'created_at']
+        fields = ['id', 'branch', 'branch_name', 'cashier', 'cashier_name', 'total_amount', 'total_profit', 'items',
+                  'created_at']
+
 
 class OrderCreateSerializer(ModelSerializer):
     items = JSONField(write_only=True)
@@ -65,41 +74,7 @@ class OrderCreateSerializer(ModelSerializer):
         fields = ['id', 'branch', 'items', 'total_amount', 'total_profit', 'created_at']
         read_only_fields = ['total_amount', 'total_profit']
 
-    def create(self, validated_data):
-        items_data = validated_data.pop('items')
-        request = self.context.get('request')
-        cashier = request.user if request else None
-        branch = validated_data.get('branch')
-
-        with transaction.atomic():
-            order = Order.objects.create(cashier=cashier, branch=branch)
-            total_amount = 0
-            total_profit = 0
-
-            for item in items_data:
-                product_id = item.get('product_id')
-                quantity = int(item.get('quantity', 1))
-
-                try:
-                    product = Product.objects.get(id=product_id, branch=branch)
-                except Product.DoesNotExist:
-                    raise ValidationError(f"Mahsulot (ID: {product_id}) ushbu filialda topilmadi!")
-
-                if product.stock < quantity:
-                    raise ValidationError(f"{product.name} mahsulotidan skladda yetarli emas! Qoldiq: {product.stock}")
-
-                product.stock -= quantity
-                product.save()
-
-                selling_price = product.selling_price
-                profit = (selling_price - product.base_price) * quantity
-
-                OrderItem.objects.create(order=order, product=product, quantity=quantity, selling_price=selling_price, profit=profit)
-                total_amount += selling_price * quantity
-                total_profit += profit
-
-            order.total_amount = total_amount
-            order.total_profit = total_profit
-            order.save()
-
-        return order
+    def validate_phone(self, value):
+        if value and not value.startswith('+'):
+            raise serializers.ValidationError("Telefon raqam xalqaro formatda bo'lishi shart (Masalan: +998...)")
+        return value

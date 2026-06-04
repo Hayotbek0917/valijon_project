@@ -1,21 +1,24 @@
-from rest_framework import viewsets, status
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
+from datetime import timedelta
+
 from django.db.models import Sum, F
 from django.utils import timezone
-from datetime import timedelta
+from rest_framework import viewsets, status
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework.views import APIView
 
 from apps.models.product import Category, Product, Order, Agent, ProductBatch, Expense
 from apps.serializers.product_serializers import (
     CategorySerializer, ProductSerializer, AgentSerializer,
-    ProductBatchSerializer, ExpenseSerializer, OrderSerializer, OrderCreateSerializer
+    ProductBatchSerializer, OrderSerializer, OrderCreateSerializer
 )
+
 
 class CategoryModelViewSet(viewsets.ModelViewSet):
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
     permission_classes = [IsAuthenticated]
+
 
 class ProductModelViewSet(viewsets.ModelViewSet):
     queryset = Product.objects.all()
@@ -27,6 +30,7 @@ class ProductModelViewSet(viewsets.ModelViewSet):
         if user.role in ['admin', 'owner'] or not user.branch:
             return Product.objects.all()
         return Product.objects.filter(branch=user.branch)
+
 
 class DashboardAnalyticsAPIView(APIView):
     permission_classes = [IsAuthenticated]
@@ -60,14 +64,16 @@ class DashboardAnalyticsAPIView(APIView):
             current_day = seven_days_ago + timedelta(days=i)
             day_start = timezone.make_aware(timezone.datetime.combine(current_day, timezone.datetime.min.time()))
             day_end = timezone.make_aware(timezone.datetime.combine(current_day, timezone.datetime.max.time()))
-            day_sales = orders_queryset.filter(created_at__range=(day_start, day_end)).aggregate(Sum('total_amount'))['total_amount__sum'] or 0
+            day_sales = orders_queryset.filter(created_at__range=(day_start, day_end)).aggregate(Sum('total_amount'))[
+                            'total_amount__sum'] or 0
             weekly_graph.append({"date": current_day.strftime("%d %b"), "sales": float(day_sales)})
 
         ai_insights = []
         if low_stock_count > 0:
             ai_insights.append({"type": "warning", "text": f"{low_stock_count} ta mahsulotning zaxirasi kam qoldi."})
         if expired_count > 0:
-            ai_insights.append({"type": "danger", "text": f"Diqqat! {expired_count} ta mahsulotning yaroqlilik muddati o'tgan!"})
+            ai_insights.append(
+                {"type": "danger", "text": f"Diqqat! {expired_count} ta mahsulotning yaroqlilik muddati o'tgan!"})
         else:
             ai_insights.append({"type": "success", "text": "Hamma mahsulotlar yaroqlilik muddati joyida."})
 
@@ -82,10 +88,12 @@ class DashboardAnalyticsAPIView(APIView):
             "ai_insights": ai_insights
         }, status=status.HTTP_200_OK)
 
+
 class AgentModelViewSet(viewsets.ModelViewSet):
     queryset = Agent.objects.all().order_by('-created_at')
     serializer_class = AgentSerializer
     permission_classes = [IsAuthenticated]
+
 
 class ProductBatchModelViewSet(viewsets.ModelViewSet):
     queryset = ProductBatch.objects.all().select_related('product__category')
@@ -96,10 +104,14 @@ class ProductBatchModelViewSet(viewsets.ModelViewSet):
         queryset = super().get_queryset()
         status_param = self.request.query_params.get('status')
         today = timezone.now().date()
-        if status_param == 'muddati_otgan': return queryset.filter(expiration_date__lt=today)
-        elif status_param == 'diqqat': return queryset.filter(expiration_date__range=(today, today + timedelta(days=15)))
-        elif status_param == 'yaxshi': return queryset.filter(expiration_date__gt=today + timedelta(days=15))
+        if status_param == 'muddati_otgan':
+            return queryset.filter(expiration_date__lt=today)
+        elif status_param == 'diqqat':
+            return queryset.filter(expiration_date__range=(today, today + timedelta(days=15)))
+        elif status_param == 'yaxshi':
+            return queryset.filter(expiration_date__gt=today + timedelta(days=15))
         return queryset
+
 
 class OrderModelViewSet(viewsets.ModelViewSet):
     queryset = Order.objects.all().prefetch_related('items__product')
@@ -112,6 +124,7 @@ class OrderModelViewSet(viewsets.ModelViewSet):
         user = self.request.user
         if user.role in ['admin', 'owner'] or not user.branch: return Order.objects.all()
         return Order.objects.filter(branch=user.branch)
+
 
 class FinancialReportAPIView(APIView):
     permission_classes = [IsAuthenticated]
@@ -136,14 +149,20 @@ class FinancialReportAPIView(APIView):
         chart_data = []
         for i in range(days_count):
             current_day = start_date + timedelta(days=i)
-            day_sales = orders.filter(created_at__date=current_day).aggregate(Sum('total_amount'))['total_amount__sum'] or 0
-            day_profit = orders.filter(created_at__date=current_day).aggregate(Sum('total_profit'))['total_profit__sum'] or 0
+            day_sales = orders.filter(created_at__date=current_day).aggregate(Sum('total_amount'))[
+                            'total_amount__sum'] or 0
+            day_profit = orders.filter(created_at__date=current_day).aggregate(Sum('total_profit'))[
+                             'total_profit__sum'] or 0
             day_expense = expenses.filter(date=current_day).aggregate(Sum('amount'))['amount__sum'] or 0
-            chart_data.append({"date": current_day.strftime("%d %b"), "sales": float(day_sales), "profit": float(day_profit), "expense": float(day_expense)})
+            chart_data.append(
+                {"date": current_day.strftime("%d %b"), "sales": float(day_sales), "profit": float(day_profit),
+                 "expense": float(day_expense)})
 
         from apps.models.product import OrderItem
-        category_sales = OrderItem.objects.filter(order__in=orders).values('product__category__name').annotate(total_sum=Sum(F('quantity') * F('selling_price'))).order_by('-total_sum')
-        formatted_categories = {item['product__category__name']: float(item['total_sum']) for item in category_sales if item['product__category__name']}
+        category_sales = OrderItem.objects.filter(order__in=orders).values('product__category__name').annotate(
+            total_sum=Sum(F('quantity') * F('selling_price'))).order_by('-total_sum')
+        formatted_categories = {item['product__category__name']: float(item['total_sum']) for item in category_sales if
+                                item['product__category__name']}
 
         return Response({
             "total_sales": total_sales, "total_profit": total_profit, "total_transactions": total_transactions,

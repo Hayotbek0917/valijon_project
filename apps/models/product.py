@@ -1,25 +1,24 @@
-import uuid
-from django.db import models
-from django.db.models import PROTECT, SET_NULL, CASCADE, Model, UUIDField, ForeignKey, CharField, DecimalField, \
+from django.db.models import PROTECT, SET_NULL, CASCADE, ForeignKey, CharField, DecimalField, \
     DateField, functions, PositiveIntegerField, DateTimeField
 
+from apps.models import BaseModel
+from apps.models import TimeStampedModel
 
-class Category(Model):
-    id = UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
+class Category(BaseModel):
     name = CharField(max_length=255, unique=True)
     created_at = DateTimeField(auto_now_add=True)
 
     class Meta:
-        verbose_name = "Kategoriya"
-        verbose_name_plural = "Kategoriyalar"
+        ordering = ["-created_at"]
 
     def __str__(self):
         return self.name
 
-class Product(Model):
-    id = UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    branch = ForeignKey('apps.Branch', on_delete=CASCADE, related_name='products', verbose_name="Filial")
-    category = ForeignKey(Category, on_delete=PROTECT, related_name='products', verbose_name="Kategoriya")
+
+class Product(TimeStampedModel):
+    branch = ForeignKey('apps.Branch', CASCADE, related_name='products', verbose_name="Filial")
+    category = ForeignKey(Category, PROTECT, related_name='products', verbose_name="Kategoriya")
     name = CharField(max_length=255, verbose_name="Mahsulot nomi")
     barcode = CharField(max_length=50, unique=True, verbose_name="Shtrix kod / Barcode")
     selling_price = DecimalField(max_digits=12, decimal_places=2, verbose_name="Sotish narxi")
@@ -27,12 +26,9 @@ class Product(Model):
     stock = PositiveIntegerField(default=0, verbose_name="Skladdagi qoldiq")
     min_stock_alert = PositiveIntegerField(default=10, verbose_name="Minimal qoldiq (Ogohlantirish)")
     expiration_date = DateField(null=True, blank=True, verbose_name="Yaroqlilik muddati")
-    created_at = DateTimeField(auto_now_add=True)
-    updated_at = DateTimeField(auto_now=True)
 
     class Meta:
-        verbose_name = "Mahsulot"
-        verbose_name_plural = "Mahsulotlar"
+        ordering = ["-created_at"]
 
     def __str__(self):
         return f"{self.name} - {self.branch.name if self.branch else 'Filialsiz'}"
@@ -41,26 +37,24 @@ class Product(Model):
     def is_low_stock(self):
         return self.stock <= self.min_stock_alert
 
-class Order(Model):
-    id = UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    branch = ForeignKey('apps.Branch', on_delete=CASCADE, related_name='orders')
-    cashier = ForeignKey('apps.User', on_delete=SET_NULL, null=True, related_name='orders')
+
+class Order(BaseModel):
+    branch = ForeignKey('apps.Branch', CASCADE, related_name='orders')
+    cashier = ForeignKey('apps.User', SET_NULL, null=True, related_name='orders')
     total_amount = DecimalField(max_digits=15, decimal_places=2, default=0.00)
     total_profit = DecimalField(max_digits=15, decimal_places=2, default=0.00)
     created_at = DateTimeField(auto_now_add=True)
 
     class Meta:
-        verbose_name = "Buyurtma"
-        verbose_name_plural = "Buyurtmalar"
         ordering = ["-created_at"]
 
     def __str__(self):
         return f"Buyurtma #{str(self.id)[:8]} ({self.branch.name if self.branch else 'Filialsiz'})"
 
-class OrderItem(Model):
-    id = UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    order = ForeignKey(Order, on_delete=CASCADE, related_name='items')
-    product = ForeignKey(Product, on_delete=CASCADE, related_name='order_items')
+
+class OrderItem(BaseModel):
+    order = ForeignKey(Order, CASCADE, related_name='items')
+    product = ForeignKey(Product, CASCADE, related_name='order_items')
     quantity = PositiveIntegerField(default=1)
     selling_price = DecimalField(max_digits=12, decimal_places=2)
     profit = DecimalField(max_digits=12, decimal_places=2)
@@ -69,17 +63,16 @@ class OrderItem(Model):
         self.profit = (self.selling_price - self.product.base_price) * self.quantity
         super().save(*args, **kwargs)
 
-class ProductBatch(Model):
-    id = UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    product = ForeignKey(Product, on_delete=CASCADE, related_name='batches')
+
+class ProductBatch(BaseModel):
+    product = ForeignKey(Product, CASCADE, related_name='batches')
     batch_number = CharField(max_length=50, verbose_name="Partiya raqami")
     quantity = PositiveIntegerField(verbose_name="Miqdor")
     expiration_date = DateField(verbose_name="Yaroqlilik muddati")
     created_at = DateTimeField(auto_now_add=True)
 
     class Meta:
-        verbose_name = "Mahsulot partiyasi"
-        verbose_name_plural = "Mahsulot partiyalari"
+        ordering = ["-created_at"]
 
     @property
     def days_left(self):
@@ -90,17 +83,18 @@ class ProductBatch(Model):
     @property
     def status(self):
         days = self.days_left
-        if days < 0: return "muddati_otgan"
-        elif days <= 15: return "diqqat"
+        if days < 0:
+            return "muddati_otgan"
+        elif days <= 15:
+            return "diqqat"
         return "yaxshi"
 
-class Expense(Model):
-    id = UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    branch = ForeignKey('apps.Branch', on_delete=CASCADE, related_name='expenses')
+
+class Expense(BaseModel):
+    branch = ForeignKey('apps.Branch', CASCADE, related_name='expenses')
     title = CharField(max_length=255, verbose_name="Xarajat maqsadi")
     amount = DecimalField(max_digits=12, decimal_places=2, verbose_name="Xarajat summasi")
     date = DateField(default=functions.Now, verbose_name="Xarajat sanasi")
 
     class Meta:
-        verbose_name = "Xarajat"
-        verbose_name_plural = "Xarajatlar"
+        ordering = ["-created_at"]
