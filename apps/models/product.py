@@ -1,6 +1,8 @@
 from django.db.models import PROTECT, SET_NULL, CASCADE, ForeignKey, CharField, DecimalField, \
     DateField, functions, PositiveIntegerField, DateTimeField
 
+from django.utils import timezone
+
 from apps.models import BaseModel
 from apps.models import TimeStampedModel
 
@@ -94,7 +96,8 @@ class Expense(BaseModel):
     branch = ForeignKey('apps.Branch', CASCADE, related_name='expenses')
     title = CharField(max_length=255, verbose_name="Xarajat maqsadi")
     amount = DecimalField(max_digits=12, decimal_places=2, verbose_name="Xarajat summasi")
-    date = DateField(default=functions.Now, verbose_name="Xarajat sanasi")
+
+    date = DateField(default=timezone.now, verbose_name="Xarajat sanasi")
 
     class Meta:
-        ordering = ["-created_at"]
+        ordering = ["-date"]

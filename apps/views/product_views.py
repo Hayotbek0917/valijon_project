@@ -1,26 +1,28 @@
 from datetime import timedelta
 
+from django.db import transaction
 from django.db.models import Sum, F
 from django.utils import timezone
+from drf_spectacular.utils import extend_schema
 from rest_framework import viewsets, status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework.viewsets import ModelViewSet
 
-from apps.models.product import Category, Product, Order, Agent, ProductBatch, Expense
+from apps.models import Category, Product, Order, OrderItem, ProductBatch, Expense, Agent
 from apps.serializers.product_serializers import (
     CategorySerializer, ProductSerializer, AgentSerializer,
     ProductBatchSerializer, OrderSerializer, OrderCreateSerializer
 )
 
-
-class CategoryModelViewSet(viewsets.ModelViewSet):
+class CategoryModelViewSet(ModelViewSet):
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
     permission_classes = [IsAuthenticated]
 
 
-class ProductModelViewSet(viewsets.ModelViewSet):
+class ProductModelViewSet(ModelViewSet):
     queryset = Product.objects.all()
     serializer_class = ProductSerializer
     permission_classes = [IsAuthenticated]
@@ -89,13 +91,13 @@ class DashboardAnalyticsAPIView(APIView):
         }, status=status.HTTP_200_OK)
 
 
-class AgentModelViewSet(viewsets.ModelViewSet):
+class AgentModelViewSet(ModelViewSet):
     queryset = Agent.objects.all().order_by('-created_at')
     serializer_class = AgentSerializer
     permission_classes = [IsAuthenticated]
 
 
-class ProductBatchModelViewSet(viewsets.ModelViewSet):
+class ProductBatchModelViewSet(ModelViewSet):
     queryset = ProductBatch.objects.all().select_related('product__category')
     serializer_class = ProductBatchSerializer
     permission_classes = [IsAuthenticated]
@@ -113,7 +115,7 @@ class ProductBatchModelViewSet(viewsets.ModelViewSet):
         return queryset
 
 
-class OrderModelViewSet(viewsets.ModelViewSet):
+class OrderModelViewSet(ModelViewSet):
     queryset = Order.objects.all().prefetch_related('items__product')
     permission_classes = [IsAuthenticated]
 
@@ -122,8 +124,71 @@ class OrderModelViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
-        if user.role in ['admin', 'owner'] or not user.branch: return Order.objects.all()
+        if user.role in ['admin', 'owner'] or not user.branch:
+            return Order.objects.all()
         return Order.objects.filter(branch=user.branch)
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        items_data = serializer.validated_data.get('items', [])
+        branch = serializer.validated_data.get('branch')
+        cashier = request.user
+
+        if not items_data:
+            return Response({"error": "Buyurtmada kamida bitta mahsulot bo'lishi shart."},
+                            status=status.HTTP_400_BAD_REQUEST)
+
+        with transaction.atomic():
+            order = Order.objects.create(branch=branch, cashier=cashier)
+            total_amount = 0
+            total_profit = 0
+
+            for item in items_data:
+                product_id = item.get('product')
+                quantity = int(item.get('quantity', 1))
+                selling_price = float(item.get('selling_price', 0))
+
+                try:
+                    product = Product.objects.select_for_update().get(id=product_id)
+                except Product.DoesNotExist:
+                    return Response({"error": f"ID={product_id} bo'lgan mahsulot topilmadi."},
+                                    status=status.HTTP_400_BAD_REQUEST)
+
+
+                if product.stock < quantity:
+                    return Response({
+                        "error": f"'{product.name}' mahsulotidan omborda yetarli emas. Skladdagi qoldiq: {product.stock}"},
+                        status=status.HTTP_400_BAD_REQUEST)
+
+                product.stock -= quantity
+                product.save()
+
+                profit = (selling_price - float(product.base_price)) * quantity
+
+                OrderItem.objects.create(
+                    order=order,
+                    product=product,
+                    quantity=quantity,
+                    selling_price=selling_price,
+                    profit=profit
+                )
+
+                total_amount += (selling_price * quantity)
+                total_profit += profit
+
+            order.total_amount = total_amount
+            order.total_profit = total_profit
+            order.save()
+
+
+        full_order = Order.objects.prefetch_related('items__product').get(id=order.id)
+
+        return Response(
+            OrderSerializer(full_order, context=self.get_serializer_context()).data,
+            status=status.HTTP_201_CREATED
+        )
 
 
 class FinancialReportAPIView(APIView):

@@ -1,6 +1,6 @@
 from django.db.models import CharField, DateTimeField
 
-from apps.models import BaseModel
+from apps.models.base_models import BaseModel
 
 
 class Agent(BaseModel):

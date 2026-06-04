@@ -2,7 +2,7 @@ from rest_framework import serializers
 from rest_framework.fields import CharField, JSONField, IntegerField, BooleanField
 from rest_framework.serializers import ModelSerializer
 
-from apps.models.product import Category, Product, Order, OrderItem, Agent, ProductBatch, Expense
+from apps.models import Category, Product, Order, OrderItem, Agent, ProductBatch, Expense
 
 
 class CategorySerializer(ModelSerializer):
