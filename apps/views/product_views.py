@@ -1,27 +1,38 @@
 from datetime import timedelta
+from decimal import Decimal
 
 from django.db import transaction
 from django.db.models import Sum, F
 from django.utils import timezone
 from drf_spectacular.utils import extend_schema
-from rest_framework import viewsets, status
+from rest_framework import status
+from rest_framework.decorators import action
+from rest_framework.exceptions import PermissionDenied
+from rest_framework.fields import JSONField
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.viewsets import ModelViewSet
 
 from apps.models import Category, Product, Order, OrderItem, ProductBatch, Expense, Agent
+
+from apps.permission import IsAdminOrOwner, IsManagerOrAbove, IsSalesAllowed
 from apps.serializers.product_serializers import (
     CategorySerializer, ProductSerializer, AgentSerializer,
     ProductBatchSerializer, OrderSerializer, OrderCreateSerializer
 )
 
+
+
+@extend_schema(tags=["Categories (Kategoriyalar)"])
 class CategoryModelViewSet(ModelViewSet):
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsManagerOrAbove]
 
 
+
+@extend_schema(tags=["Products (Mahsulotlar)"])
 class ProductModelViewSet(ModelViewSet):
     queryset = Product.objects.all()
     serializer_class = ProductSerializer
@@ -33,10 +44,25 @@ class ProductModelViewSet(ModelViewSet):
             return Product.objects.all()
         return Product.objects.filter(branch=user.branch)
 
+    @action(detail=False, methods=['get'], url_path='by-barcode/(?P<barcode>[^/.]+)')
+    def by_barcode(self, request, barcode=None):
+        try:
+            product = self.get_queryset().select_related('category').get(barcode=barcode)
+            serializer = self.get_serializer(product)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        except Product.DoesNotExist:
+            return Response(
+                {"error": f"Shtrix-kod '{barcode}' bo'yicha mahsulot topilmadi."},
+                status=status.HTTP_404_NOT_FOUND
+            )
 
+
+
+@extend_schema(tags=["Dashboard & Analytics (Tahlillar)"])
 class DashboardAnalyticsAPIView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAdminOrOwner]
 
+    @extend_schema(responses={200: JSONField()})
     def get(self, request):
         user = request.user
         today = timezone.now().date()
@@ -91,16 +117,20 @@ class DashboardAnalyticsAPIView(APIView):
         }, status=status.HTTP_200_OK)
 
 
+
+@extend_schema(tags=["Agents (Ta'minotchi Agentlar)"])
 class AgentModelViewSet(ModelViewSet):
     queryset = Agent.objects.all().order_by('-created_at')
     serializer_class = AgentSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsManagerOrAbove]
 
 
+
+@extend_schema(tags=["Batches (Yuk Partiyalari)"])
 class ProductBatchModelViewSet(ModelViewSet):
     queryset = ProductBatch.objects.all().select_related('product__category')
     serializer_class = ProductBatchSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsManagerOrAbove]
 
     def get_queryset(self):
         queryset = super().get_queryset()
@@ -115,9 +145,11 @@ class ProductBatchModelViewSet(ModelViewSet):
         return queryset
 
 
+
+@extend_schema(tags=["Orders & POS (Kassa Savdo Tizimi)"])
 class OrderModelViewSet(ModelViewSet):
     queryset = Order.objects.all().prefetch_related('items__product')
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsSalesAllowed]
 
     def get_serializer_class(self):
         return OrderCreateSerializer if self.action == 'create' else OrderSerializer
@@ -136,26 +168,38 @@ class OrderModelViewSet(ModelViewSet):
         branch = serializer.validated_data.get('branch')
         cashier = request.user
 
+
+        if cashier.role == 'cashier' and cashier.branch and branch != cashier.branch:
+            raise PermissionDenied("Siz faqat o'zingizning filialingizda sotuv qila olasiz.")
+
+        payment_method = request.data.get('payment_method', 'cash')
+        paid_amount = Decimal(str(request.data.get('paid_amount', 0.00)))
+
         if not items_data:
             return Response({"error": "Buyurtmada kamida bitta mahsulot bo'lishi shart."},
                             status=status.HTTP_400_BAD_REQUEST)
 
         with transaction.atomic():
-            order = Order.objects.create(branch=branch, cashier=cashier)
-            total_amount = 0
-            total_profit = 0
+            order = Order.objects.create(
+                branch=branch,
+                cashier=cashier,
+                payment_method=payment_method,
+                paid_amount=paid_amount
+            )
+
+            total_amount = Decimal('0.00')
+            total_profit = Decimal('0.00')
 
             for item in items_data:
                 product_id = item.get('product')
                 quantity = int(item.get('quantity', 1))
-                selling_price = float(item.get('selling_price', 0))
+                selling_price = Decimal(str(item.get('selling_price', 0)))
 
                 try:
                     product = Product.objects.select_for_update().get(id=product_id)
                 except Product.DoesNotExist:
                     return Response({"error": f"ID={product_id} bo'lgan mahsulot topilmadi."},
                                     status=status.HTTP_400_BAD_REQUEST)
-
 
                 if product.stock < quantity:
                     return Response({
@@ -165,7 +209,7 @@ class OrderModelViewSet(ModelViewSet):
                 product.stock -= quantity
                 product.save()
 
-                profit = (selling_price - float(product.base_price)) * quantity
+                profit = (selling_price - Decimal(str(product.base_price))) * quantity
 
                 OrderItem.objects.create(
                     order=order,
@@ -182,7 +226,6 @@ class OrderModelViewSet(ModelViewSet):
             order.total_profit = total_profit
             order.save()
 
-
         full_order = Order.objects.prefetch_related('items__product').get(id=order.id)
 
         return Response(
@@ -191,9 +234,12 @@ class OrderModelViewSet(ModelViewSet):
         )
 
 
-class FinancialReportAPIView(APIView):
-    permission_classes = [IsAuthenticated]
 
+@extend_schema(tags=["Dashboard & Analytics (Tahlillar)"])
+class FinancialReportAPIView(APIView):
+    permission_classes = [IsAdminOrOwner]
+
+    @extend_schema(responses={200: JSONField()})
     def get(self, request):
         user = request.user
         today = timezone.now().date()

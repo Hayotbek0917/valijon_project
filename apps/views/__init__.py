@@ -3,3 +3,5 @@ from .product_views import (
     CategoryModelViewSet, ProductModelViewSet, DashboardAnalyticsAPIView,
     OrderModelViewSet, AgentModelViewSet, ProductBatchModelViewSet, FinancialReportAPIView
 )
+
+from .supply_views import SupplyModelViewSet
