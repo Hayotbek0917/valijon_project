@@ -4,6 +4,8 @@ from decimal import Decimal
 from django.db import transaction
 from django.db.models import Sum, F
 from django.utils import timezone
+from django_filters import OrderingFilter
+from django_filters.rest_framework import DjangoFilterBackend
 from drf_spectacular.utils import extend_schema
 from rest_framework import status
 from rest_framework.decorators import action
@@ -15,13 +17,12 @@ from rest_framework.views import APIView
 from rest_framework.viewsets import ModelViewSet
 
 from apps.models import Category, Product, Order, OrderItem, ProductBatch, Expense, Agent
-
 from apps.permission import IsAdminOrOwner, IsManagerOrAbove, IsSalesAllowed
 from apps.serializers.product_serializers import (
     CategorySerializer, ProductSerializer, AgentSerializer,
     ProductBatchSerializer, OrderSerializer, OrderCreateSerializer
 )
-
+from filters import ProductFilter
 
 
 @extend_schema(tags=["Categories (Kategoriyalar)"])
@@ -31,18 +32,22 @@ class CategoryModelViewSet(ModelViewSet):
     permission_classes = [IsManagerOrAbove]
 
 
-
 @extend_schema(tags=["Products (Mahsulotlar)"])
 class ProductModelViewSet(ModelViewSet):
     queryset = Product.objects.all()
     serializer_class = ProductSerializer
     permission_classes = [IsAuthenticated]
+    filter_backends = [DjangoFilterBackend, OrderingFilter]
+    filterset_class = ProductFilter
+    ordering_fields = ['selling_price', 'base_price', 'stock', 'created_at']
+    ordering = ['-created_at']
 
     def get_queryset(self):
         user = self.request.user
+        queryset = super().get_queryset()
         if user.role in ['admin', 'owner'] or not user.branch:
-            return Product.objects.all()
-        return Product.objects.filter(branch=user.branch)
+            return queryset
+        return queryset.filter(branch=user.branch)
 
     @action(detail=False, methods=['get'], url_path='by-barcode/(?P<barcode>[^/.]+)')
     def by_barcode(self, request, barcode=None):
@@ -55,7 +60,6 @@ class ProductModelViewSet(ModelViewSet):
                 {"error": f"Shtrix-kod '{barcode}' bo'yicha mahsulot topilmadi."},
                 status=status.HTTP_404_NOT_FOUND
             )
-
 
 
 @extend_schema(tags=["Dashboard & Analytics (Tahlillar)"])
@@ -117,13 +121,11 @@ class DashboardAnalyticsAPIView(APIView):
         }, status=status.HTTP_200_OK)
 
 
-
 @extend_schema(tags=["Agents (Ta'minotchi Agentlar)"])
 class AgentModelViewSet(ModelViewSet):
     queryset = Agent.objects.all().order_by('-created_at')
     serializer_class = AgentSerializer
     permission_classes = [IsManagerOrAbove]
-
 
 
 @extend_schema(tags=["Batches (Yuk Partiyalari)"])
@@ -143,7 +145,6 @@ class ProductBatchModelViewSet(ModelViewSet):
         elif status_param == 'yaxshi':
             return queryset.filter(expiration_date__gt=today + timedelta(days=15))
         return queryset
-
 
 
 @extend_schema(tags=["Orders & POS (Kassa Savdo Tizimi)"])
@@ -167,7 +168,6 @@ class OrderModelViewSet(ModelViewSet):
         items_data = serializer.validated_data.get('items', [])
         branch = serializer.validated_data.get('branch')
         cashier = request.user
-
 
         if cashier.role == 'cashier' and cashier.branch and branch != cashier.branch:
             raise PermissionDenied("Siz faqat o'zingizning filialingizda sotuv qila olasiz.")
@@ -232,7 +232,6 @@ class OrderModelViewSet(ModelViewSet):
             OrderSerializer(full_order, context=self.get_serializer_context()).data,
             status=status.HTTP_201_CREATED
         )
-
 
 
 @extend_schema(tags=["Dashboard & Analytics (Tahlillar)"])

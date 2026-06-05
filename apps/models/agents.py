@@ -1,13 +1,12 @@
-from django.db.models import CharField, DateTimeField
+from django.db.models import CharField
 
-from apps.models.base_models import BaseModel
+from .base_models import CreatedMixin
 
 
-class Agent(BaseModel):
+class Agent(CreatedMixin):
     name = CharField(max_length=255, verbose_name="Agent ismi")
     company = CharField(max_length=255, verbose_name="Kompaniya / Agentlik")
     phone = CharField(max_length=20, verbose_name="Telefon raqami")
-    created_at = DateTimeField(auto_now_add=True)
 
     class Meta:
         ordering = ["-created_at"]

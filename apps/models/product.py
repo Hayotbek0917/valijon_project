@@ -5,11 +5,11 @@ from django.utils import timezone
 
 from apps.models import BaseModel
 from apps.models import TimeStampedModel
+from .base_models import CreatedMixin
 
 
-class Category(BaseModel):
+class Category(CreatedMixin):
     name = CharField(max_length=255, unique=True)
-    created_at = DateTimeField(auto_now_add=True)
 
     class Meta:
         ordering = ["-created_at"]
@@ -20,7 +20,7 @@ class Category(BaseModel):
 
 class Product(TimeStampedModel):
     branch = ForeignKey('apps.Branch', CASCADE, related_name='products', verbose_name="Filial")
-    category = ForeignKey(Category, PROTECT, related_name='products', verbose_name="Kategoriya")
+    category = ForeignKey('apps.Category', PROTECT, related_name='products', verbose_name="Kategoriya")
     name = CharField(max_length=255, verbose_name="Mahsulot nomi")
     barcode = CharField(max_length=50, unique=True, verbose_name="Shtrix kod / Barcode")
     selling_price = DecimalField(max_digits=12, decimal_places=2, verbose_name="Sotish narxi")
@@ -40,12 +40,11 @@ class Product(TimeStampedModel):
         return self.stock <= self.min_stock_alert
 
 
-class Order(BaseModel):
+class Order(CreatedMixin):
     branch = ForeignKey('apps.Branch', CASCADE, related_name='orders')
     cashier = ForeignKey('apps.User', SET_NULL, null=True, related_name='orders')
     total_amount = DecimalField(max_digits=15, decimal_places=2, default=0.00)
     total_profit = DecimalField(max_digits=15, decimal_places=2, default=0.00)
-    created_at = DateTimeField(auto_now_add=True)
 
     class Meta:
         ordering = ["-created_at"]
@@ -55,8 +54,8 @@ class Order(BaseModel):
 
 
 class OrderItem(BaseModel):
-    order = ForeignKey(Order, CASCADE, related_name='items')
-    product = ForeignKey(Product, CASCADE, related_name='order_items')
+    order = ForeignKey('apps.Order', CASCADE, related_name='items')
+    product = ForeignKey('apps.Product', CASCADE, related_name='order_items')
     quantity = PositiveIntegerField(default=1)
     selling_price = DecimalField(max_digits=12, decimal_places=2)
     profit = DecimalField(max_digits=12, decimal_places=2)
@@ -66,12 +65,11 @@ class OrderItem(BaseModel):
         super().save(*args, **kwargs)
 
 
-class ProductBatch(BaseModel):
-    product = ForeignKey(Product, CASCADE, related_name='batches')
+class ProductBatch(CreatedMixin):
+    product = ForeignKey('apps.Product', CASCADE, related_name='batches')
     batch_number = CharField(max_length=50, verbose_name="Partiya raqami")
     quantity = PositiveIntegerField(verbose_name="Miqdor")
     expiration_date = DateField(verbose_name="Yaroqlilik muddati")
-    created_at = DateTimeField(auto_now_add=True)
 
     class Meta:
         ordering = ["-created_at"]
