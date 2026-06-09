@@ -1,6 +1,6 @@
 from django.db.models import CASCADE, ForeignKey
 from django.db.models.fields import CharField, DecimalField
-from apps.models import TimeStampedModel
+from apps.models.base_models import TimeStampedModel
 
 
 class Debt(TimeStampedModel):
