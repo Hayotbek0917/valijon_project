@@ -1,3 +1,5 @@
+import re
+
 from rest_framework import serializers
 
 from apps.models import Branch, Category, Product
@@ -50,7 +52,11 @@ class BranchModelSerializer(serializers.ModelSerializer):
             'created_at': {'read_only': True}
         }
 
-    def validate_phone(self, value):
-        if value and not value.startswith('+'):
-            raise serializers.ValidationError("Telefon raqam xalqaro formatda bo'lishi shart (Masalan: +998...)")
-        return value
+
+
+def validate_phone(self, value):
+    if value and not re.match(r'^\+\d{9,15}$', value):
+        raise serializers.ValidationError(
+            "Telefon raqam noto'g'ri formatda. Masalan: +998901234567"
+        )
+    return value
