@@ -1,16 +1,19 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
 import {
-  Add, Search, Edit, Delete, FilterList, ArrowBack, ArrowForward,
+  Add, Search,
+  Inventory2, WarningAmber, TrendingDown,
+  LocalShipping, ExpandMore, ExpandLess,
 } from '@mui/icons-material';
 import {
-  Button, Chip, IconButton, InputAdornment, TextField,
+  Button, Chip, InputAdornment, TextField,
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
   Dialog, DialogTitle, DialogContent, DialogActions,
-  FormControl, InputLabel, Select, MenuItem, FormControlLabel, Checkbox
+  FormControl, InputLabel, Select, MenuItem, Alert, Collapse, IconButton,
 } from '@mui/material';
-
+import { PRICE_FILTER_OPTIONS, matchesPriceFilter } from '../config/priceFilters';
 import { formatCurrency } from '../utils/format';
 
 const stockStatus = (qty) => {
@@ -20,37 +23,58 @@ const stockStatus = (qty) => {
 };
 
 export default function Products() {
+  const navigate = useNavigate();
   const { permissions } = useAuth();
   const canEdit = permissions.editProducts;
   const showCost = permissions.viewProductCost;
   const {
     getBusinessProducts,
     categories,
-    currentBusinessId,
     selectedWarehouseId,
+    setSelectedWarehouseId,
+    activeBusinessWarehouses,
     getProductStock,
-    setProducts,
-    setInventory
+    getIncomingAlerts,
+    addProduct,
+    addCatalogToProducts,
+    removeProduct,
+    saving,
   } = useApp();
 
+  const { unlinkedCatalog, pendingReceipts } = getIncomingAlerts();
+
   const [search, setSearch] = useState('');
+  const [filterType, setFilterType] = useState('all');
+  const [filterCategory, setFilterCategory] = useState('Barchasi');
+  const [priceFilter, setPriceFilter] = useState('all');
   const [openDialog, setOpenDialog] = useState(false);
+  const [showIncoming, setShowIncoming] = useState(true);
   const [editProduct, setEditProduct] = useState(null);
   const [form, setForm] = useState({ name: '', category: '', price: '', cost: '', barcode: '', image: '' });
-  const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 8;
 
-  const businessProducts = getBusinessProducts();
+  const productsWithStock = getBusinessProducts().map((p) => ({
+    ...p,
+    stock: getProductStock(p.id, selectedWarehouseId),
+  }));
 
-  const filtered = businessProducts.filter((p) =>
-    p.name.toLowerCase().includes(search.toLowerCase()) ||
-    p.category.toLowerCase().includes(search.toLowerCase()) ||
-    (p.barcode && p.barcode.includes(search))
-  );
+  const lowStockCount = productsWithStock.filter((p) => p.stock > 0 && p.stock <= 5).length;
+  const outOfStockCount = productsWithStock.filter((p) => p.stock === 0).length;
+  const totalStockSum = productsWithStock.reduce((s, p) => s + p.stock, 0);
 
-  const totalPages = Math.ceil(filtered.length / itemsPerPage) || 1;
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const paginatedProducts = filtered.slice(startIndex, startIndex + itemsPerPage);
+  const categoryOptions = ['Barchasi', ...new Set(productsWithStock.map((p) => p.category))];
+
+  const filtered = productsWithStock.filter((p) => {
+    const matchesSearch =
+      p.name.toLowerCase().includes(search.toLowerCase()) ||
+      p.category.toLowerCase().includes(search.toLowerCase()) ||
+      (p.barcode && p.barcode.includes(search));
+    if (!matchesSearch) return false;
+    if (filterCategory !== 'Barchasi' && p.category !== filterCategory) return false;
+    if (!matchesPriceFilter(p.price, priceFilter)) return false;
+    if (filterType === 'low') return p.stock > 0 && p.stock <= 5;
+    if (filterType === 'out') return p.stock === 0;
+    return true;
+  });
 
   const openAdd = () => {
     setEditProduct(null);
@@ -71,60 +95,74 @@ export default function Products() {
     setOpenDialog(true);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!form.name || !form.price) return;
     const newPrice = parseFloat(form.price) || 0;
     const newCost = parseFloat(form.cost) || 0;
 
-    let savedProductId = editProduct ? editProduct.id : Date.now();
+    const result = await addProduct({
+      name: form.name,
+      category: form.category,
+      price: newPrice,
+      cost: newCost,
+      barcode: form.barcode,
+      emoji: form.image || '📦',
+      isDraft: false,
+    }, editProduct?.id);
 
-    if (editProduct) {
-      setProducts((prev) => prev.map((p) =>
-        p.id === editProduct.id ? {
-          ...p,
-          name: form.name,
-          category: form.category,
-          price: newPrice,
-          cost: newCost,
-          barcode: form.barcode,
-          image: form.image,
-          isDraft: false
-        } : p
-      ));
-    } else {
-      setProducts((prev) => [...prev, {
-        id: savedProductId,
-        name: form.name,
-        category: form.category,
-        price: newPrice,
-        cost: newCost,
-        barcode: form.barcode,
-        image: form.image,
-        isDraft: false,
-        businessId: currentBusinessId
-      }]);
-
-      // Initialize stock to 0 in inventory for the selected warehouse
-      setInventory((prev) => {
-        const idx = prev.findIndex(i => i.productId === savedProductId && i.warehouseId === selectedWarehouseId);
-        if (idx >= 0) return prev;
-        return [...prev, { id: Date.now() + Math.random(), productId: savedProductId, warehouseId: selectedWarehouseId, quantity: 0 }];
-      });
+    if (!result.ok) {
+      alert(result.error);
+      return;
     }
-
     setOpenDialog(false);
   };
 
-  const handleDelete = (id) => {
+  const handleDelete = async (id) => {
     if (window.confirm("O'chirishni tasdiqlaysizmi?")) {
-      setProducts((prev) => prev.filter((p) => p.id !== id));
+      const result = await removeProduct(id);
+      if (!result.ok) alert(result.error);
+    }
+  };
+
+  const handleRegisterCatalogItem = async (item) => {
+    const cost = item.defaultCost || 0;
+    const defaultPrice = cost ? Math.round(cost * 1.3) : 0;
+    const priceStr = window.prompt(
+      `"${item.name}" uchun sotuv narxini kiriting (so'm):`,
+      String(defaultPrice),
+    );
+    if (priceStr === null) return;
+    const sellingPrice = parseFloat(priceStr);
+    if (!sellingPrice || sellingPrice <= 0) {
+      alert('Narx 0 dan katta bo\'lishi kerak');
+      return;
+    }
+    const result = await addCatalogToProducts(item.supplierId, item.id, { sellingPrice });
+    if (!result.ok) alert(result.error);
+  };
+
+  const handleRegisterAllCatalog = async () => {
+    if (!window.confirm(`${unlinkedCatalog.length} ta mahsulotni ro'yxatga qo'shasizmi? (standart narx: tannarx + 30%)`)) return;
+    for (const item of unlinkedCatalog) {
+      const cost = item.defaultCost || 0;
+      const sellingPrice = cost ? Math.round(cost * 1.3) : 1000;
+      const result = await addCatalogToProducts(item.supplierId, item.id, { sellingPrice });
+      if (!result.ok) {
+        alert(`${item.name}: ${result.error}`);
+        break;
+      }
     }
   };
 
   const handleSearchChange = (e) => {
     setSearch(e.target.value);
-    setCurrentPage(1);
   };
+
+  const applyFilter = (type) => {
+    setFilterType(type);
+  };
+
+  const warehouseName = activeBusinessWarehouses.find((w) => w.id === selectedWarehouseId)?.name || 'Asosiy ombor';
 
   return (
     <div className="space-y-4">
@@ -133,9 +171,7 @@ export default function Products() {
         <div>
           <h1 className="text-xl font-bold text-gray-800">Mahsulotlar</h1>
           <p className="text-sm text-gray-500">
-            {canEdit
-              ? `Jami ${businessProducts.length} ta mahsulot`
-              : `Qidiruv — ${businessProducts.length} ta mahsulot (faqat ko'rish)`}
+            Mahsulotlar, narxlar va ombor qoldiqlari ({warehouseName})
           </p>
         </div>
         {canEdit && (
@@ -150,30 +186,219 @@ export default function Products() {
         )}
       </div>
 
+      {(unlinkedCatalog.length > 0 || pendingReceipts.length > 0) && (
+        <Alert
+          severity="warning"
+          sx={{ borderRadius: 2, alignItems: 'flex-start' }}
+          action={
+            unlinkedCatalog.length > 0 ? (
+              <IconButton size="small" onClick={() => setShowIncoming((v) => !v)} aria-label="Yig'ish">
+                {showIncoming ? <ExpandLess /> : <ExpandMore />}
+              </IconButton>
+            ) : null
+          }
+        >
+          <div className="space-y-1">
+            {unlinkedCatalog.length > 0 && (
+              <p className="font-semibold text-sm">
+                {unlinkedCatalog.length} ta yangi mahsulot diler katalogida — Mahsulotlar ro&apos;yxatiga qo&apos;shilmagan
+              </p>
+            )}
+            {pendingReceipts.length > 0 && (
+              <p className="text-sm">
+                {pendingReceipts.length} ta prixod kutilmoqda —{' '}
+                <button
+                  type="button"
+                  className="underline font-semibold text-inherit"
+                  onClick={() => navigate('/dilerlar/prixod')}
+                >
+                  Qabul qilish
+                </button>
+              </p>
+            )}
+          </div>
+        </Alert>
+      )}
+
+      <Collapse in={showIncoming && unlinkedCatalog.length > 0}>
+        <div className="bg-white rounded-xl border border-amber-200 shadow-sm overflow-hidden">
+          <div className="flex items-center justify-between px-4 py-3 bg-amber-50 border-b border-amber-100">
+            <div>
+              <p className="font-bold text-gray-800 text-sm">Yangi kelgan mol (diler katalogi)</p>
+              <p className="text-xs text-gray-500">Ro&apos;yxatga qo&apos;shgandan keyin prixod orqali qoldiq to&apos;ldirasiz</p>
+            </div>
+            {canEdit && unlinkedCatalog.length > 1 && (
+              <Button
+                size="small"
+                variant="contained"
+                onClick={handleRegisterAllCatalog}
+                disabled={saving}
+                sx={{ bgcolor: '#4361ee', textTransform: 'none', fontSize: 12 }}
+              >
+                Hammasini qo&apos;shish
+              </Button>
+            )}
+          </div>
+          <TableContainer>
+            <Table size="small">
+              <TableHead>
+                <TableRow sx={{ '& th': { bgcolor: '#fffbeb', fontWeight: 700, fontSize: 11 } }}>
+                  <TableCell>Mahsulot</TableCell>
+                  <TableCell>Diler</TableCell>
+                  <TableCell>O&apos;lchov</TableCell>
+                  {showCost && <TableCell>Tannarx</TableCell>}
+                  {canEdit && <TableCell align="right">Amal</TableCell>}
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {unlinkedCatalog.map((item) => (
+                  <TableRow key={`${item.supplierId}-${item.id}`} hover>
+                    <TableCell sx={{ fontWeight: 600 }}>{item.name}</TableCell>
+                    <TableCell>
+                      <Chip label={item.supplierName} size="small" sx={{ fontSize: 10 }} />
+                    </TableCell>
+                    <TableCell sx={{ fontSize: 12, color: '#6b7280' }}>{item.unit || 'dona'}</TableCell>
+                    {showCost && (
+                      <TableCell sx={{ fontSize: 12 }}>{formatCurrency(item.defaultCost || 0)}</TableCell>
+                    )}
+                    {canEdit && (
+                      <TableCell align="right">
+                        <Button
+                          size="small"
+                          variant="outlined"
+                          startIcon={<Add />}
+                          onClick={() => handleRegisterCatalogItem(item)}
+                          disabled={saving}
+                          sx={{ textTransform: 'none', fontSize: 11 }}
+                        >
+                          Qo&apos;shish
+                        </Button>
+                      </TableCell>
+                    )}
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+          {pendingReceipts.length > 0 && (
+            <div className="px-4 py-3 border-t border-amber-100 flex items-center justify-between bg-white">
+              <div className="flex items-center gap-2 text-sm text-gray-600">
+                <LocalShipping style={{ fontSize: 18, color: '#4361ee' }} />
+                <span>{pendingReceipts.length} ta buyurtma prixod kutmoqda</span>
+              </div>
+              <Button
+                size="small"
+                onClick={() => navigate('/dilerlar/prixod')}
+                sx={{ textTransform: 'none', color: '#4361ee' }}
+              >
+                Prixodga o&apos;tish →
+              </Button>
+            </div>
+          )}
+        </div>
+      </Collapse>
+
+      {/* Qoldiq statistikasi — bosilsa filtrlanadi */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <button
+          type="button"
+          onClick={() => applyFilter('all')}
+          className={`text-left bg-white rounded-xl p-4 shadow-sm border transition-all ${
+            filterType === 'all' ? 'border-blue-400 ring-2 ring-blue-100' : 'border-gray-100 hover:border-gray-200'
+          }`}
+        >
+          <div className="flex items-center gap-2 mb-1">
+            <Inventory2 style={{ color: '#4361ee', fontSize: 20 }} />
+            <span className="text-xs text-gray-500">Jami mahsulot</span>
+          </div>
+          <p className="text-xl font-bold text-gray-800">{productsWithStock.length}</p>
+        </button>
+        <button
+          type="button"
+          onClick={() => applyFilter('all')}
+          className="text-left bg-white rounded-xl p-4 shadow-sm border border-gray-100 hover:border-gray-200"
+        >
+          <div className="flex items-center gap-2 mb-1">
+            <Inventory2 style={{ color: '#22c55e', fontSize: 20 }} />
+            <span className="text-xs text-gray-500">Jami qoldiq</span>
+          </div>
+          <p className="text-xl font-bold text-gray-800">{totalStockSum} dona</p>
+        </button>
+        <button
+          type="button"
+          onClick={() => applyFilter('low')}
+          className={`text-left bg-white rounded-xl p-4 shadow-sm border transition-all ${
+            filterType === 'low' ? 'border-orange-400 ring-2 ring-orange-100' : 'border-gray-100 hover:border-orange-200'
+          }`}
+        >
+          <div className="flex items-center gap-2 mb-1">
+            <TrendingDown style={{ color: '#f97316', fontSize: 20 }} />
+            <span className="text-xs text-gray-500">Kam qolgan (≤5)</span>
+          </div>
+          <p className="text-xl font-bold text-orange-600">{lowStockCount} ta</p>
+        </button>
+        <button
+          type="button"
+          onClick={() => applyFilter('out')}
+          className={`text-left bg-white rounded-xl p-4 shadow-sm border transition-all ${
+            filterType === 'out' ? 'border-red-400 ring-2 ring-red-100' : 'border-gray-100 hover:border-red-200'
+          }`}
+        >
+          <div className="flex items-center gap-2 mb-1">
+            <WarningAmber style={{ color: '#ef4444', fontSize: 20 }} />
+            <span className="text-xs text-gray-500">Tugagan</span>
+          </div>
+          <p className="text-xl font-bold text-red-600">{outOfStockCount} ta</p>
+        </button>
+      </div>
+
       {/* Filters */}
-      <div className="flex gap-3">
+      <div className="flex gap-3 flex-wrap items-center bg-white p-4 rounded-xl border border-gray-100">
+        {activeBusinessWarehouses.length > 1 && (
+          <FormControl size="small" sx={{ minWidth: 200 }}>
+            <InputLabel>Ombor</InputLabel>
+            <Select
+              label="Ombor"
+              value={selectedWarehouseId ?? ''}
+              onChange={(e) => setSelectedWarehouseId(e.target.value)}
+            >
+              {activeBusinessWarehouses.map((w) => (
+                <MenuItem key={w.id} value={w.id}>{w.name}</MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+        )}
+        <FormControl size="small" sx={{ minWidth: 180 }}>
+          <InputLabel>Kategoriya</InputLabel>
+          <Select label="Kategoriya" value={filterCategory} onChange={(e) => setFilterCategory(e.target.value)}>
+            {categoryOptions.map((c) => (
+              <MenuItem key={c} value={c}>{c}</MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+        <FormControl size="small" sx={{ minWidth: 160 }}>
+          <InputLabel>Narx</InputLabel>
+          <Select label="Narx" value={priceFilter} onChange={(e) => setPriceFilter(e.target.value)}>
+            {PRICE_FILTER_OPTIONS.map((pf) => (
+              <MenuItem key={pf.id} value={pf.id}>{pf.label}</MenuItem>
+            ))}
+          </Select>
+        </FormControl>
         <TextField
           size="small"
-          placeholder="Mahsulot qidirish..."
+          placeholder="Qidirish..."
           value={search}
           onChange={handleSearchChange}
-          sx={{ width: 280, '& .MuiOutlinedInput-root': { borderRadius: 2, fontSize: 14 } }}
+          sx={{ flex: 1, minWidth: 200, '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
           InputProps={{
             startAdornment: <InputAdornment position="start"><Search style={{ fontSize: 18, color: '#9ca3af' }} /></InputAdornment>,
           }}
         />
-        <Button
-          variant="outlined"
-          startIcon={<FilterList />}
-          sx={{ borderRadius: 2, textTransform: 'none', color: '#6b7280', borderColor: '#e5e7eb', fontSize: 13 }}
-        >
-          Filter
-        </Button>
+        <span className="text-sm text-gray-500 w-full sm:w-auto">{filtered.length} ta</span>
       </div>
 
-
-      <div className="bg-white rounded-xl shadow-sm overflow-hidden border border-gray-100">
-        <TableContainer>
+      <div className="bg-white rounded-xl shadow-sm overflow-hidden border border-gray-100 flex flex-col max-h-[calc(100vh-320px)]">
+        <TableContainer sx={{ flex: 1, overflow: 'auto' }}>
           <Table size="small">
             <TableHead>
               <TableRow sx={{ '& th': { bgcolor: '#f8fafc', fontWeight: 700, fontSize: 12, color: '#6b7280', py: 1.5 } }}>
@@ -183,20 +408,20 @@ export default function Products() {
                 <TableCell>Narx</TableCell>
                 {showCost && <TableCell>Tannarx</TableCell>}
                 {showCost && <TableCell>Foyda</TableCell>}
-                <TableCell>Stock (Omborda)</TableCell>
+                <TableCell>Qoldiq (omborda)</TableCell>
                 <TableCell>Holat</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
-              {paginatedProducts.length === 0 ? (
+              {filtered.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={showCost ? 8 : 6} align="center" sx={{ py: 4, color: '#9ca3af' }}>
                     Mahsulotlar topilmadi
                   </TableCell>
                 </TableRow>
               ) : (
-                paginatedProducts.map((p, i) => {
-                  const stock = getProductStock(p.id, selectedWarehouseId);
+                filtered.map((p, i) => {
+                  const stock = p.stock;
                   const status = stockStatus(stock);
                   return (
                     <TableRow
@@ -212,7 +437,7 @@ export default function Products() {
                         }
                       }}
                     >
-                      <TableCell sx={{ color: '#9ca3af' }}>{startIndex + i + 1}</TableCell>
+                      <TableCell sx={{ color: '#9ca3af' }}>{i + 1}</TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
                           <div className="w-8 h-8 rounded bg-[#f2f2f2] flex items-center justify-center shrink-0 border border-[#e5e5e5] overflow-hidden">
@@ -253,36 +478,6 @@ export default function Products() {
             </TableBody>
           </Table>
         </TableContainer>
-
-        {/* Pagination Controls */}
-        <div className="p-3 border-t border-gray-100 flex items-center justify-between bg-gray-50">
-          <span className="text-xs text-gray-500">
-            Jami {filtered.length} ta mahsulotdan {startIndex + 1}-{Math.min(startIndex + itemsPerPage, filtered.length)} ko'rsatilmoqda
-          </span>
-          <div className="flex items-center gap-2">
-            <Button
-              size="small"
-              disabled={currentPage === 1}
-              onClick={() => setCurrentPage(p => p - 1)}
-              startIcon={<ArrowBack />}
-              sx={{ textTransform: 'none', fontSize: 11 }}
-            >
-              Oldingi
-            </Button>
-            <span className="text-xs font-semibold px-2.5 py-1 bg-white border rounded-md">
-              {currentPage} / {totalPages}
-            </span>
-            <Button
-              size="small"
-              disabled={currentPage === totalPages}
-              onClick={() => setCurrentPage(p => p + 1)}
-              endIcon={<ArrowForward />}
-              sx={{ textTransform: 'none', fontSize: 11 }}
-            >
-              Keyingi
-            </Button>
-          </div>
-        </div>
       </div>
 
       {/* Dialog — faqat tahrirlash huquqi bo'lsa */}

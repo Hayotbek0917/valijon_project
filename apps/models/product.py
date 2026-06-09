@@ -1,106 +1,46 @@
-import uuid
-from django.db import models
-from django.db.models import PROTECT, SET_NULL, CASCADE, Model, UUIDField, ForeignKey, CharField, DecimalField, \
-    DateField, functions, PositiveIntegerField, DateTimeField
+from django.db.models import (
+    Model, CharField, ForeignKey, DecimalField, PositiveIntegerField,
+    DateTimeField, PROTECT, BooleanField, SET_NULL,
+)
+
+from apps.models.users import Branch
 
 
 class Category(Model):
-    id = UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = CharField(max_length=255, unique=True)
-    created_at = DateTimeField(auto_now_add=True)
-
-    class Meta:
-        verbose_name = "Kategoriya"
-        verbose_name_plural = "Kategoriyalar"
 
     def __str__(self):
         return self.name
 
+
 class Product(Model):
-    id = UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    branch = ForeignKey('apps.Branch', on_delete=CASCADE, related_name='products', verbose_name="Filial")
-    category = ForeignKey(Category, on_delete=PROTECT, related_name='products', verbose_name="Kategoriya")
-    name = CharField(max_length=255, verbose_name="Mahsulot nomi")
-    barcode = CharField(max_length=50, unique=True, verbose_name="Shtrix kod / Barcode")
-    selling_price = DecimalField(max_digits=12, decimal_places=2, verbose_name="Sotish narxi")
-    base_price = DecimalField(max_digits=12, decimal_places=2, verbose_name="Tannarxi")
-    stock = PositiveIntegerField(default=0, verbose_name="Skladdagi qoldiq")
-    min_stock_alert = PositiveIntegerField(default=10, verbose_name="Minimal qoldiq (Ogohlantirish)")
-    expiration_date = DateField(null=True, blank=True, verbose_name="Yaroqlilik muddati")
+    name = CharField(max_length=255)
+    barcode = CharField(max_length=50, unique=True, blank=True)
+    category = ForeignKey(Category, on_delete=PROTECT, related_name='products')
+    branch = ForeignKey(
+        Branch, on_delete=SET_NULL, null=True, blank=True, related_name='products',
+    )
+
+    selling_price = DecimalField(max_digits=12, decimal_places=2)
+    base_price = DecimalField(max_digits=12, decimal_places=2)
+    emoji = CharField(max_length=16, blank=True, default='📦')
+    is_draft = BooleanField(default=False)
+
+    stock = PositiveIntegerField(default=0)
     created_at = DateTimeField(auto_now_add=True)
     updated_at = DateTimeField(auto_now=True)
 
-    class Meta:
-        verbose_name = "Mahsulot"
-        verbose_name_plural = "Mahsulotlar"
-
     def __str__(self):
-        return f"{self.name} - {self.branch.name if self.branch else 'Filialsiz'}"
+        return self.name
+
 
     @property
-    def is_low_stock(self):
-        return self.stock <= self.min_stock_alert
+    def profit(self):
+        return self.selling_price - self.base_price
 
-class Order(Model):
-    id = UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    branch = ForeignKey('apps.Branch', on_delete=CASCADE, related_name='orders')
-    cashier = ForeignKey('apps.User', on_delete=SET_NULL, null=True, related_name='orders')
-    total_amount = DecimalField(max_digits=15, decimal_places=2, default=0.00)
-    total_profit = DecimalField(max_digits=15, decimal_places=2, default=0.00)
-    created_at = DateTimeField(auto_now_add=True)
-
-    class Meta:
-        verbose_name = "Buyurtma"
-        verbose_name_plural = "Buyurtmalar"
-        ordering = ["-created_at"]
-
-    def __str__(self):
-        return f"Buyurtma #{str(self.id)[:8]} ({self.branch.name if self.branch else 'Filialsiz'})"
-
-class OrderItem(Model):
-    id = UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    order = ForeignKey(Order, on_delete=CASCADE, related_name='items')
-    product = ForeignKey(Product, on_delete=CASCADE, related_name='order_items')
-    quantity = PositiveIntegerField(default=1)
-    selling_price = DecimalField(max_digits=12, decimal_places=2)
-    profit = DecimalField(max_digits=12, decimal_places=2)
-
-    def save(self, *args, **kwargs):
-        self.profit = (self.selling_price - self.product.base_price) * self.quantity
-        super().save(*args, **kwargs)
-
-class ProductBatch(Model):
-    id = UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    product = ForeignKey(Product, on_delete=CASCADE, related_name='batches')
-    batch_number = CharField(max_length=50, verbose_name="Partiya raqami")
-    quantity = PositiveIntegerField(verbose_name="Miqdor")
-    expiration_date = DateField(verbose_name="Yaroqlilik muddati")
-    created_at = DateTimeField(auto_now_add=True)
-
-    class Meta:
-        verbose_name = "Mahsulot partiyasi"
-        verbose_name_plural = "Mahsulot partiyalari"
-
-    @property
-    def days_left(self):
-        from django.utils import timezone
-        today = timezone.now().date()
-        return (self.expiration_date - today).days
 
     @property
     def status(self):
-        days = self.days_left
-        if days < 0: return "muddati_otgan"
-        elif days <= 15: return "diqqat"
-        return "yaxshi"
-
-class Expense(Model):
-    id = UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    branch = ForeignKey('apps.Branch', on_delete=CASCADE, related_name='expenses')
-    title = CharField(max_length=255, verbose_name="Xarajat maqsadi")
-    amount = DecimalField(max_digits=12, decimal_places=2, verbose_name="Xarajat summasi")
-    date = DateField(default=functions.Now, verbose_name="Xarajat sanasi")
-
-    class Meta:
-        verbose_name = "Xarajat"
-        verbose_name_plural = "Xarajatlar"
+        if self.stock > 0:
+            return "Yetarli"
+        return "Tugagan"

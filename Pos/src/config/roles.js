@@ -20,7 +20,6 @@ export const ROUTE_ROLES = {
   '/': OPS_STAFF,
   '/pos': [ROLES.CASHIER],
   '/products': [ROLES.ADMIN, ROLES.BOSS, ROLES.MANAGER, ROLES.CASHIER],
-  '/inventory': OPS_STAFF,
   '/agents': OPS_STAFF,
   '/dilerlar/zakaz': OPS_STAFF,
   '/dilerlar/prixod': OPS_STAFF,
@@ -29,7 +28,8 @@ export const ROUTE_ROLES = {
   '/ai-analytics': FINANCE_STAFF,
   '/expire-management': OPS_STAFF,
   '/reports': OPS_STAFF,
-  '/settings': [ROLES.ADMIN, ROLES.BOSS],
+  '/staff': [ROLES.ADMIN, ROLES.BOSS, ROLES.MANAGER],
+  '/settings': [ROLES.ADMIN, ROLES.BOSS, ROLES.MANAGER],
 };
 
 export function canAccessRoute(role, pathname) {

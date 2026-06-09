@@ -27,11 +27,11 @@ export default function Login() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     setLoading(true);
-    const result = login(username, password);
+    const result = await login(username, password);
     setLoading(false);
     if (result.ok) {
       navigate(getHomePath(result.user.role), { replace: true });
@@ -95,7 +95,7 @@ export default function Login() {
               </p>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-5">
+            <form onSubmit={handleSubmit} className="flex flex-col gap-5">
               {error && (
                 <Alert severity="error" sx={{ borderRadius: 2, fontSize: 13 }}>
                   {error}
@@ -110,7 +110,8 @@ export default function Login() {
                 required
                 autoComplete="username"
                 autoFocus
-                sx={inputSx}
+                margin="normal"
+                sx={{ ...inputSx, mt: 0, mb: 0 }}
                 InputProps={{
                   startAdornment: (
                     <InputAdornment position="start">
@@ -128,7 +129,8 @@ export default function Login() {
                 fullWidth
                 required
                 autoComplete="current-password"
-                sx={inputSx}
+                margin="normal"
+                sx={{ ...inputSx, mt: 2, mb: 0 }}
                 InputProps={{
                   startAdornment: (
                     <InputAdornment position="start">

@@ -1,191 +1,205 @@
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { useAuth } from './AuthContext';
 import {
-  initialProducts,
-  initialWarehouses,
-  initialInventory,
-  initialSuppliers,
-  initialDealerOrders,
-  initialCustomers,
-  initialAgents,
-  initialAgentOrders,
-  initialSales,
-  businesses,
-  defaultCategories,
-} from '../data/initialData';
+  loadPosData, createSupplier, createPurchaseOrder, receivePurchaseOrder,
+  saveProduct, deleteProduct, createAgent, createSale, registerCatalogProduct,
+} from '../api/pos';
+import { businesses as fallbackBusinesses, defaultCategories } from '../data/initialData';
 
 const AppContext = createContext();
 
 export function AppProvider({ children }) {
+  const { currentUser, authReady, logout } = useAuth();
+
   const [collapsed, setCollapsed] = useState(() => {
     const val = localStorage.getItem('sidebar_collapsed');
     return val ? JSON.parse(val) : false;
   });
 
-  const [currentBusinessId, setCurrentBusinessId] = useState(() => {
-    const val = localStorage.getItem('current_business_id');
-    return val ? parseInt(val, 10) : 1;
-  });
+  const [dataReady, setDataReady] = useState(false);
+  const [dataError, setDataError] = useState(null);
+  const [saving, setSaving] = useState(false);
 
-  const [products, setProducts] = useState(() => {
-    const val = localStorage.getItem('pos_products');
-    return val ? JSON.parse(val) : initialProducts;
-  });
+  const [businesses, setBusinesses] = useState(fallbackBusinesses);
+  const [currentBusinessId, setCurrentBusinessId] = useState(null);
 
-  const [warehouses, setWarehouses] = useState(() => {
-    const val = localStorage.getItem('pos_warehouses');
-    return val ? JSON.parse(val) : initialWarehouses;
-  });
-
-  const [inventory, setInventory] = useState(() => {
-    const val = localStorage.getItem('pos_inventory');
-    return val ? JSON.parse(val) : initialInventory;
-  });
-
-  const [suppliers, setSuppliers] = useState(() => {
-    const val = localStorage.getItem('pos_suppliers');
-    return val ? JSON.parse(val) : initialSuppliers;
-  });
-
-  const [dealerOrders, setDealerOrders] = useState(() => {
-    const val = localStorage.getItem('pos_dealer_orders');
-    return val ? JSON.parse(val) : initialDealerOrders;
-  });
-
-  const [customers, setCustomers] = useState(() => {
-    const val = localStorage.getItem('pos_customers');
-    return val ? JSON.parse(val) : initialCustomers;
-  });
-
-  const [agents, setAgents] = useState(() => {
-    const val = localStorage.getItem('pos_agents');
-    return val ? JSON.parse(val) : initialAgents;
-  });
-
-  const [agentOrders, setAgentOrders] = useState(() => {
-    const val = localStorage.getItem('pos_agent_orders');
-    return val ? JSON.parse(val) : initialAgentOrders;
-  });
-
-  const [sales, setSales] = useState(() => {
-    const val = localStorage.getItem('pos_sales');
-    return val ? JSON.parse(val) : initialSales;
-  });
-
+  const [products, setProducts] = useState([]);
+  const [warehouses, setWarehouses] = useState([]);
+  const [inventory, setInventory] = useState([]);
+  const [suppliers, setSuppliers] = useState([]);
+  const [dealerOrders, setDealerOrders] = useState([]);
+  const [customers, setCustomers] = useState([]);
+  const [agents, setAgents] = useState([]);
+  const [agentOrders, setAgentOrders] = useState([]);
+  const [sales, setSales] = useState([]);
   const [categories, setCategories] = useState(defaultCategories);
 
-  // Client-side migration for existing local storage state
-  useEffect(() => {
-    setCurrentBusinessId(1);
-    setProducts(prev => prev.filter(p => p.businessId === 1));
-    setWarehouses(prev => prev.filter(w => w.businessId === 1 && w.id !== 2));
-    setInventory(prev => prev.filter(i => i.warehouseId === 1));
-    setSuppliers(prev => prev.filter(s => s.businessId === 1));
-    setDealerOrders(prev => prev.filter(o => o.businessId === 1));
-    setCustomers(prev => prev.filter(c => c.businessId === 1));
-    setAgents(prev => prev.filter(a => a.businessId === 1));
-    setAgentOrders(prev => prev.filter(ao => ao.businessId === 1));
-    setSales(prev => prev.filter(s => s.businessId === 1));
-  }, []);
+  const [selectedWarehouseId, setSelectedWarehouseId] = useState(null);
 
-  // Persists
+  const refreshData = useCallback(async () => {
+    if (!currentUser) {
+      setDataReady(true);
+      return;
+    }
+
+    setDataReady(false);
+    setDataError(null);
+
+    try {
+      const data = await loadPosData();
+      setBusinesses(data.businesses.length ? data.businesses : fallbackBusinesses);
+      setProducts(data.products);
+      setWarehouses(data.warehouses);
+      setInventory(data.inventory);
+      setSuppliers(data.suppliers);
+      setDealerOrders(data.dealerOrders);
+      setCustomers(data.customers);
+      setAgents(data.agents);
+      setAgentOrders(data.agentOrders);
+      setSales(data.sales);
+      setCategories(data.categories.length ? data.categories : defaultCategories);
+
+      const branchId = data.businesses[0]?.id ?? null;
+      setCurrentBusinessId(branchId);
+      setSelectedWarehouseId(data.warehouses[0]?.id ?? null);
+    } catch (err) {
+      if (err.status === 401 || err.status === 403) {
+        logout();
+        return;
+      }
+      setDataError(err.message || 'Ma\'lumotlarni yuklashda xatolik');
+    } finally {
+      setDataReady(true);
+    }
+  }, [currentUser, logout]);
+
+  useEffect(() => {
+    if (!authReady) return;
+    if (!currentUser) {
+      setDataReady(true);
+      setDataError(null);
+      return;
+    }
+    refreshData();
+  }, [authReady, currentUser, refreshData]);
+
   useEffect(() => {
     localStorage.setItem('sidebar_collapsed', JSON.stringify(collapsed));
   }, [collapsed]);
 
-  useEffect(() => {
-    localStorage.setItem('current_business_id', currentBusinessId);
-  }, [currentBusinessId]);
+  const activeBusinessWarehouses = warehouses.filter(
+    (w) => w.businessId === currentBusinessId
+  );
 
   useEffect(() => {
-    localStorage.setItem('pos_products', JSON.stringify(products));
-  }, [products]);
-
-  useEffect(() => {
-    localStorage.setItem('pos_warehouses', JSON.stringify(warehouses));
-  }, [warehouses]);
-
-  useEffect(() => {
-    localStorage.setItem('pos_inventory', JSON.stringify(inventory));
-  }, [inventory]);
-
-  useEffect(() => {
-    localStorage.setItem('pos_suppliers', JSON.stringify(suppliers));
-  }, [suppliers]);
-
-  useEffect(() => {
-    localStorage.setItem('pos_dealer_orders', JSON.stringify(dealerOrders));
-  }, [dealerOrders]);
-
-  useEffect(() => {
-    localStorage.setItem('pos_customers', JSON.stringify(customers));
-  }, [customers]);
-
-  useEffect(() => {
-    localStorage.setItem('pos_agents', JSON.stringify(agents));
-  }, [agents]);
-
-  useEffect(() => {
-    localStorage.setItem('pos_agent_orders', JSON.stringify(agentOrders));
-  }, [agentOrders]);
-
-  useEffect(() => {
-    localStorage.setItem('pos_sales', JSON.stringify(sales));
-  }, [sales]);
-
-  // Derived Active Warehouse
-  const activeBusinessWarehouses = warehouses.filter(w => w.businessId === currentBusinessId);
-  const [selectedWarehouseId, setSelectedWarehouseId] = useState(activeBusinessWarehouses[0]?.id || 1);
-
-  // Auto-switch warehouse when business changes
-  useEffect(() => {
-    const validWarehouses = warehouses.filter(w => w.businessId === currentBusinessId);
-    if (validWarehouses.length > 0) {
+    if (!currentBusinessId) return;
+    const validWarehouses = warehouses.filter((w) => w.businessId === currentBusinessId);
+    if (validWarehouses.length > 0 && !validWarehouses.some((w) => w.id === selectedWarehouseId)) {
       setSelectedWarehouseId(validWarehouses[0].id);
     }
-  }, [currentBusinessId, warehouses]);
+  }, [currentBusinessId, warehouses, selectedWarehouseId]);
 
-  // Inventory Helper
   const getProductStock = (productId, wId) => {
     const whId = wId || selectedWarehouseId;
-    const inv = inventory.find(i => i.productId === productId && i.warehouseId === whId);
+    const inv = inventory.find((i) => i.productId === productId && i.warehouseId === whId);
     return inv ? inv.quantity : 0;
   };
 
-  const updateProductStock = (productId, quantityToAdd, wId) => {
-    const whId = wId || selectedWarehouseId;
-    setInventory(prev => {
-      const idx = prev.findIndex(i => i.productId === productId && i.warehouseId === whId);
-      if (idx >= 0) {
-        return prev.map((item, i) => i === idx ? { ...item, quantity: item.quantity + quantityToAdd } : item);
-      } else {
-        return [...prev, { id: Date.now() + Math.random(), productId, warehouseId: whId, quantity: quantityToAdd }];
-      }
-    });
+  const getBusinessProducts = () =>
+    products.filter((p) => p.businessId === currentBusinessId);
+
+  const getSupplierCatalog = (supplierId) => {
+    const sup = suppliers.find((s) => s.id === supplierId);
+    return sup?.catalog || [];
   };
 
-  const getBusinessProducts = () => {
-    return products.filter(p => p.businessId === currentBusinessId);
-  };
+  const getIncomingAlerts = useCallback(() => {
+    if (!currentBusinessId) {
+      return { unlinkedCatalog: [], pendingReceipts: [], totalCount: 0 };
+    }
+    const businessSuppliers = suppliers.filter((s) => s.businessId === currentBusinessId);
+    const unlinkedCatalog = [];
+    for (const sup of businessSuppliers) {
+      for (const item of sup.catalog || []) {
+        if (!item.productId) {
+          unlinkedCatalog.push({
+            ...item,
+            supplierId: sup.id,
+            supplierName: sup.name,
+          });
+        }
+      }
+    }
+    const pendingReceipts = dealerOrders.filter(
+      (o) => o.businessId === currentBusinessId && o.status === 'Kutilmoqda',
+    );
+    return {
+      unlinkedCatalog,
+      pendingReceipts,
+      totalCount: unlinkedCatalog.length + pendingReceipts.length,
+    };
+  }, [suppliers, dealerOrders, currentBusinessId]);
 
   const currentBusiness = businesses.find((b) => b.id === currentBusinessId);
 
+  const withSave = useCallback(async (fn) => {
+    setSaving(true);
+    try {
+      await fn();
+      await refreshData();
+      return { ok: true };
+    } catch (err) {
+      return { ok: false, error: err.message || 'Xatolik yuz berdi' };
+    } finally {
+      setSaving(false);
+    }
+  }, [refreshData]);
+
+  const addSupplier = useCallback((data) =>
+    withSave(() => createSupplier(currentBusinessId, data)), [currentBusinessId, withSave]);
+
+  const addPurchaseOrder = useCallback((data) =>
+    withSave(() => createPurchaseOrder(currentBusinessId, data)), [currentBusinessId, withSave]);
+
+  const confirmPurchaseReceipt = useCallback((orderDbId, payload) =>
+    withSave(() => receivePurchaseOrder(orderDbId, payload)), [withSave]);
+
+  const addProduct = useCallback((data, editId) =>
+    withSave(() => saveProduct(currentBusinessId, data, editId)), [currentBusinessId, withSave]);
+
+  const removeProduct = useCallback((id) =>
+    withSave(() => deleteProduct(id)), [withSave]);
+
+  const addAgent = useCallback((data) =>
+    withSave(() => createAgent(currentBusinessId, data)), [currentBusinessId, withSave]);
+
+  const addCatalogToProducts = useCallback((supplierId, catalogItemId, options) =>
+    withSave(() => registerCatalogProduct(supplierId, catalogItemId, options)), [withSave]);
+
+  const addSale = useCallback((data) =>
+    withSave(() => createSale(currentBusinessId, data)), [currentBusinessId, withSave]);
+
   return (
-    <AppContext.Provider value={{
-      collapsed, setCollapsed,
-      businesses,
-      currentBusiness, currentBusinessId, setCurrentBusinessId,
-      products, setProducts, getBusinessProducts,
-      warehouses, setWarehouses, activeBusinessWarehouses,
-      selectedWarehouseId, setSelectedWarehouseId,
-      inventory, setInventory, getProductStock, updateProductStock,
-      suppliers, setSuppliers,
-      dealerOrders, setDealerOrders,
-      customers, setCustomers,
-      agents, setAgents,
-      agentOrders, setAgentOrders,
-      sales, setSales,
-      categories, setCategories
-    }}>
+    <AppContext.Provider
+      value={{
+        collapsed, setCollapsed,
+        dataReady, dataError, saving, refreshData,
+        businesses, currentBusiness, currentBusinessId, setCurrentBusinessId,
+        products, setProducts, getBusinessProducts,
+        warehouses, setWarehouses, activeBusinessWarehouses,
+        selectedWarehouseId, setSelectedWarehouseId,
+        inventory, setInventory, getProductStock,
+        suppliers, setSuppliers, getSupplierCatalog, getIncomingAlerts,
+        dealerOrders, setDealerOrders,
+        customers, setCustomers,
+        agents, setAgents,
+        agentOrders, setAgentOrders,
+        sales, setSales,
+        categories, setCategories,
+        addSupplier, addPurchaseOrder, confirmPurchaseReceipt,
+        addProduct, removeProduct, addAgent, addCatalogToProducts, addSale,
+      }}
+    >
       {children}
     </AppContext.Provider>
   );

@@ -1,40 +1,51 @@
-from rest_framework import viewsets, status
-from rest_framework.views import APIView
+from drf_spectacular.utils import extend_schema
+from rest_framework.generics import GenericAPIView
+from rest_framework.mixins import CreateModelMixin
+from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated, AllowAny
-from rest_framework.viewsets import ModelViewSet
+from rest_framework.viewsets import GenericViewSet
 from rest_framework_simplejwt.tokens import RefreshToken
-from django.contrib.auth import authenticate
-from apps.models.users import User, Branch
-from apps.serializers.auth_serializers import UserSerializer, BranchSerializer
 
-class BranchModelViewSet(ModelViewSet):
-    queryset = Branch.objects.all()
-    serializer_class = BranchSerializer
-    permission_classes = [IsAuthenticated]
+from apps.models import User
+from apps.serializers.auth_serializers import RegisterModelSerializer, LoginModelSerializer
 
-class RegisterModelViewSet(ModelViewSet):
+
+@extend_schema(tags=['Auth'])
+class RegisterModelViewSet(CreateModelMixin, GenericViewSet):
     queryset = User.objects.all()
-    serializer_class = UserSerializer
+    serializer_class = RegisterModelSerializer
     permission_classes = [AllowAny]
 
-class UserViewSet(ModelViewSet):
-    queryset = User.objects.all()
-    serializer_class = UserSerializer
-    permission_classes = [IsAuthenticated]
 
-class LoginAPIView(APIView):
+@extend_schema(tags=['Auth'])
+class LoginAPIView(GenericAPIView):
+    serializer_class = LoginModelSerializer
     permission_classes = [AllowAny]
 
     def post(self, request):
-        phone = request.data.get('phone')
-        password = request.data.get('password')
-        user = authenticate(phone=phone, password=password)
-        if user:
-            refresh = RefreshToken.for_user(user)
-            return Response({
-                'refresh': str(refresh),
-                'access': str(refresh.access_token),
-                'user': UserSerializer(user).data
-            })
-        return Response({'detail': 'Xato telefon raqam yoki parol'}, status=status.HTTP_401_UNAUTHORIZED)
+        serializer = self.serializer_class(
+            data=request.data,
+            context={'request': request}
+        )
+        serializer.is_valid(raise_exception=True)
+        user = serializer.validated_data['user']
+        refresh = RefreshToken.for_user(user)
+        return Response({
+            'message': 'Login successful',
+            'access': str(refresh.access_token),
+            'refresh': str(refresh),
+            'access_token': str(refresh.access_token),
+            'refresh_token': str(refresh),
+            'user': {
+                'id': str(user.id),
+                'username': user.username,
+                'phone': user.phone,
+                'email': user.email,
+                'name': user.full_name,
+                'first_name': user.first_name,
+                'last_name': user.last_name,
+                'role': user.role,
+                'active': user.is_active,
+                'branch': str(user.branch_id) if user.branch_id else None,
+            },
+        })

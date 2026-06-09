@@ -8,8 +8,7 @@ const ALL_EXCEPT_CASHIER = [ROLES.ADMIN, ROLES.BOSS, ROLES.MANAGER];
 export const NAV_MAIN = [
   { path: '/', label: 'Dashboard', title: 'Dashboard', icon: 'dashboard', roles: ALL_EXCEPT_CASHIER },
   { path: '/pos', label: 'POS', title: 'POS (Kassa)', icon: 'pos', roles: [ROLES.CASHIER] },
-  { path: '/products', label: 'Products', title: 'Products', icon: 'products', roles: [ROLES.ADMIN, ROLES.BOSS, ROLES.MANAGER, ROLES.CASHIER] },
-  { path: '/inventory', label: 'Sklad', title: 'Sklad', icon: 'inventory', roles: OPS },
+  { path: '/products', label: 'Products', title: 'Mahsulotlar va qoldiq', icon: 'products', roles: [ROLES.ADMIN, ROLES.BOSS, ROLES.MANAGER, ROLES.CASHIER] },
   { path: '/agents', label: 'Agentlar', title: 'Agentlar', icon: 'agents', roles: OPS },
 ];
 
@@ -32,7 +31,8 @@ export const NAV_BOTTOM = [
   { path: '/ai-analytics', label: 'AI Analytica', title: 'AI Analytica', icon: 'ai-analytics', roles: FINANCE },
   { path: '/expire-management', label: 'Yaroqlilik Mudati', title: 'Yaroqlilik Mudati', icon: 'expire', roles: OPS },
   { path: '/reports', label: 'Hisobot', title: 'Hisobot', icon: 'reports', roles: ALL_EXCEPT_CASHIER },
-  { path: '/settings', label: 'Sozlamalar', title: 'Sozlamalar', icon: 'settings', roles: [ROLES.ADMIN, ROLES.BOSS] },
+  { path: '/staff', label: 'Xodimlar', title: 'Xodimlar', icon: 'staff', roles: [ROLES.ADMIN, ROLES.BOSS, ROLES.MANAGER] },
+  { path: '/settings', label: 'Sozlamalar', title: 'Sozlamalar', icon: 'settings', roles: [ROLES.ADMIN, ROLES.BOSS, ROLES.MANAGER] },
 ];
 
 export const NAV_LEGACY = [

@@ -1,105 +1,56 @@
 from rest_framework import serializers
-from django.db import transaction
-from rest_framework.exceptions import ValidationError
-from rest_framework.fields import CharField, JSONField, IntegerField, BooleanField
-from rest_framework.serializers import ModelSerializer
 
-from apps.models.product import Category, Product, Order, OrderItem, Agent, ProductBatch, Expense
+from apps.models import Branch, Category, Product
 
-class CategorySerializer(ModelSerializer):
+
+class CategorySerializer(serializers.ModelSerializer):
     class Meta:
         model = Category
-        fields = '__all__'
+        fields = ['id', 'name']
 
-class ProductSerializer(ModelSerializer):
-    category_name = CharField(source='category.name', read_only=True)
-    branch_name = CharField(source='branch.name', read_only=True)
-    is_low_stock = BooleanField(read_only=True)
+
+class ProductSerializer(serializers.ModelSerializer):
+    category = serializers.SlugRelatedField(
+        slug_field='name', queryset=Category.objects.all(),
+    )
+    category_name = serializers.CharField(source='category.name', read_only=True)
+    price = serializers.DecimalField(
+        source='selling_price', max_digits=12, decimal_places=2, required=False,
+    )
+    cost = serializers.DecimalField(
+        source='base_price', max_digits=12, decimal_places=2, required=False,
+    )
+    profit = serializers.SerializerMethodField()
+    status = serializers.SerializerMethodField()
+    business_id = serializers.UUIDField(source='branch_id', read_only=True, allow_null=True)
 
     class Meta:
         model = Product
-        fields = ['id', 'branch', 'branch_name', 'category', 'category_name', 'name', 'barcode', 'selling_price', 'base_price', 'stock', 'min_stock_alert', 'expiration_date', 'is_low_stock']
+        fields = [
+            'id', 'name', 'barcode', 'category', 'category_name',
+            'branch', 'business_id', 'selling_price', 'base_price', 'price', 'cost',
+            'emoji', 'is_draft', 'profit', 'stock', 'status',
+            'created_at', 'updated_at',
+        ]
+        read_only_fields = ('created_at', 'updated_at')
 
-class AgentSerializer(ModelSerializer):
+    def get_profit(self, obj):
+        return obj.profit
+
+    def get_status(self, obj):
+        return obj.status
+
+
+class BranchModelSerializer(serializers.ModelSerializer):
     class Meta:
-        model = Agent
-        fields = ['id', 'name', 'company', 'phone', 'created_at']
+        model = Branch
+        fields = ('id', 'name', 'address', 'phone', 'created_at')
+        extra_kwargs = {
+            'id': {'read_only': True},
+            'created_at': {'read_only': True}
+        }
 
-class ProductBatchSerializer(ModelSerializer):
-    product_name = CharField(source='product.name', read_only=True)
-    category_name = CharField(source='product.category.name', read_only=True)
-    days_left = IntegerField(read_only=True)
-    status = CharField(read_only=True)
-
-    class Meta:
-        model = ProductBatch
-        fields = ['id', 'product', 'product_name', 'category_name', 'batch_number', 'quantity', 'expiration_date', 'days_left', 'status']
-
-class ExpenseSerializer(ModelSerializer):
-    class Meta:
-        model = Expense
-        fields = ['id', 'branch', 'title', 'amount', 'date']
-
-class OrderItemSerializer(ModelSerializer):
-    product_name = CharField(source='product.name', read_only=True)
-    barcode = CharField(source='product.barcode', read_only=True)
-
-    class Meta:
-        model = OrderItem
-        fields = ['id', 'product_name', 'barcode', 'quantity', 'selling_price', 'profit']
-
-class OrderSerializer(ModelSerializer):
-    items = OrderItemSerializer(many=True, read_only=True)
-    cashier_name = CharField(source='cashier.full_name', read_only=True)
-    branch_name = CharField(source='branch.name', read_only=True)
-
-    class Meta:
-        model = Order
-        fields = ['id', 'branch', 'branch_name', 'cashier', 'cashier_name', 'total_amount', 'total_profit', 'items', 'created_at']
-
-class OrderCreateSerializer(ModelSerializer):
-    items = JSONField(write_only=True)
-
-    class Meta:
-        model = Order
-        fields = ['id', 'branch', 'items', 'total_amount', 'total_profit', 'created_at']
-        read_only_fields = ['total_amount', 'total_profit']
-
-    def create(self, validated_data):
-        items_data = validated_data.pop('items')
-        request = self.context.get('request')
-        cashier = request.user if request else None
-        branch = validated_data.get('branch')
-
-        with transaction.atomic():
-            order = Order.objects.create(cashier=cashier, branch=branch)
-            total_amount = 0
-            total_profit = 0
-
-            for item in items_data:
-                product_id = item.get('product_id')
-                quantity = int(item.get('quantity', 1))
-
-                try:
-                    product = Product.objects.get(id=product_id, branch=branch)
-                except Product.DoesNotExist:
-                    raise ValidationError(f"Mahsulot (ID: {product_id}) ushbu filialda topilmadi!")
-
-                if product.stock < quantity:
-                    raise ValidationError(f"{product.name} mahsulotidan skladda yetarli emas! Qoldiq: {product.stock}")
-
-                product.stock -= quantity
-                product.save()
-
-                selling_price = product.selling_price
-                profit = (selling_price - product.base_price) * quantity
-
-                OrderItem.objects.create(order=order, product=product, quantity=quantity, selling_price=selling_price, profit=profit)
-                total_amount += selling_price * quantity
-                total_profit += profit
-
-            order.total_amount = total_amount
-            order.total_profit = total_profit
-            order.save()
-
-        return order
+    def validate_phone(self, value):
+        if value and not value.startswith('+'):
+            raise serializers.ValidationError("Telefon raqam xalqaro formatda bo'lishi shart (Masalan: +998...)")
+        return value

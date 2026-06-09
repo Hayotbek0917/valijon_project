@@ -1,20 +1,17 @@
 import { useState } from 'react';
 import {
   Store, Person, Notifications, Security, Palette,
-  Receipt, DarkMode, LightMode, GroupAdd, Delete,
+  Receipt, DarkMode, LightMode,
 } from '@mui/icons-material';
 import {
-  Switch, Button, TextField, Avatar, Alert, Chip,
-  Table, TableBody, TableCell, TableHead, TableRow, IconButton,
-  MenuItem, Select, FormControl, InputLabel,
+  Switch, Button, TextField, Avatar, Alert,
 } from '@mui/material';
 import { useAuth } from '../context/AuthContext';
 import { ROLES, ROLE_LABELS } from '../config/roles';
 
 const allSections = [
   { id: 'market', label: "Market Ma'lumotlari", icon: <Store fontSize="small" />, roles: [ROLES.ADMIN], readOnlyRoles: [ROLES.BOSS] },
-  { id: 'users', label: 'Xodimlar', icon: <GroupAdd fontSize="small" />, roles: [ROLES.ADMIN] },
-  { id: 'profile', label: 'Profil', icon: <Person fontSize="small" />, roles: [ROLES.ADMIN, ROLES.BOSS] },
+  { id: 'profile', label: 'Profil', icon: <Person fontSize="small" />, roles: [ROLES.ADMIN, ROLES.BOSS, ROLES.MANAGER] },
   { id: 'notifications', label: 'Bildirishnomalar', icon: <Notifications fontSize="small" />, roles: [ROLES.ADMIN] },
   { id: 'security', label: 'Xavfsizlik', icon: <Security fontSize="small" />, roles: [ROLES.ADMIN, ROLES.BOSS] },
   { id: 'appearance', label: "Ko'rinish", icon: <Palette fontSize="small" />, roles: [ROLES.ADMIN] },
@@ -23,16 +20,10 @@ const allSections = [
 
 const btnSx = { bgcolor: '#4361ee', borderRadius: 1.5, textTransform: 'none', fontWeight: 600, '&:hover': { bgcolor: '#3451d1' } };
 
-const ASSIGNABLE_ROLES = [ROLES.BOSS, ROLES.MANAGER, ROLES.CASHIER];
-
 export default function Settings() {
   const {
     currentUser,
     permissions,
-    users,
-    addUser,
-    updateUserRole,
-    toggleUserActive,
     updateOwnPassword,
   } = useAuth();
 
@@ -53,23 +44,10 @@ export default function Settings() {
     currency: "so'm",
   });
 
-  const [userForm, setUserForm] = useState({ username: '', password: '', name: '', role: ROLES.CASHIER });
-  const [userMsg, setUserMsg] = useState({ type: '', text: '' });
-
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [passwordMsg, setPasswordMsg] = useState({ type: '', text: '' });
-
-  const handleAddUser = () => {
-    const result = addUser(userForm);
-    if (result.ok) {
-      setUserForm({ username: '', password: '', name: '', role: ROLES.CASHIER });
-      setUserMsg({ type: 'success', text: "Xodim qo'shildi" });
-    } else {
-      setUserMsg({ type: 'error', text: result.error });
-    }
-  };
 
   const handlePasswordChange = () => {
     if (newPassword !== confirmPassword) {
@@ -92,8 +70,8 @@ export default function Settings() {
       <div>
         <h1 className="text-xl font-bold text-gray-800">Sozlamalar</h1>
         <p className="text-sm text-gray-500">
-          {permissions.manageUsers
-            ? 'Tizim va xodimlarni boshqarish'
+          {permissions.systemSettings
+            ? 'Tizim sozlamalari'
             : isMarketReadOnly
               ? "Do'kon ma'lumotlari va profil"
               : 'Profil va xavfsizlik'}
@@ -164,121 +142,6 @@ export default function Settings() {
               {!isMarketReadOnly && (
                 <Button variant="contained" sx={{ mt: 4, ...btnSx }}>Saqlash</Button>
               )}
-            </div>
-          )}
-
-          {activeSection === 'users' && permissions.manageUsers && (
-            <div>
-              <h2 className="text-base font-bold text-gray-800 mb-1">Xodimlar</h2>
-              <p className="text-sm text-gray-500 mb-4">Rol biriktirish va yangi xodim qo'shish (faqat Admin)</p>
-
-              {userMsg.text && (
-                <Alert severity={userMsg.type} sx={{ mb: 3 }} onClose={() => setUserMsg({ type: '', text: '' })}>
-                  {userMsg.text}
-                </Alert>
-              )}
-
-              <div className="p-4 border border-gray-100 rounded-xl mb-6">
-                <h3 className="text-sm font-bold text-gray-700 mb-3">Yangi xodim</h3>
-                <div className="grid grid-cols-2 gap-3">
-                  <TextField
-                    label="Login"
-                    value={userForm.username}
-                    onChange={(e) => setUserForm((f) => ({ ...f, username: e.target.value }))}
-                    size="small"
-                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5 } }}
-                  />
-                  <TextField
-                    label="Parol"
-                    type="password"
-                    value={userForm.password}
-                    onChange={(e) => setUserForm((f) => ({ ...f, password: e.target.value }))}
-                    size="small"
-                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5 } }}
-                  />
-                  <TextField
-                    label="Ism"
-                    value={userForm.name}
-                    onChange={(e) => setUserForm((f) => ({ ...f, name: e.target.value }))}
-                    size="small"
-                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5 } }}
-                  />
-                  <FormControl size="small" sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5 } }}>
-                    <InputLabel id="new-user-role">Rol</InputLabel>
-                    <Select
-                      labelId="new-user-role"
-                      label="Rol"
-                      value={userForm.role}
-                      onChange={(e) => setUserForm((f) => ({ ...f, role: e.target.value }))}
-                    >
-                      {ASSIGNABLE_ROLES.map((r) => (
-                        <MenuItem key={r} value={r}>{ROLE_LABELS[r]}</MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
-                </div>
-                <Button variant="contained" startIcon={<GroupAdd />} onClick={handleAddUser} sx={{ mt: 3, ...btnSx }}>
-                  Xodim qo'shish
-                </Button>
-              </div>
-
-              <Table size="small">
-                <TableHead>
-                  <TableRow sx={{ '& th': { fontWeight: 700, fontSize: 12, color: '#6b7280' } }}>
-                    <TableCell>Login</TableCell>
-                    <TableCell>Ism</TableCell>
-                    <TableCell>Rol</TableCell>
-                    <TableCell>Holat</TableCell>
-                    <TableCell align="right">Amal</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {users.map((u) => (
-                    <TableRow key={u.id} hover>
-                      <TableCell sx={{ fontSize: 13 }}>{u.username}</TableCell>
-                      <TableCell sx={{ fontSize: 13, fontWeight: 600 }}>{u.name}</TableCell>
-                      <TableCell>
-                        {u.id === currentUser?.id || u.role === ROLES.ADMIN ? (
-                          <Chip label={ROLE_LABELS[u.role]} size="small" sx={{ fontSize: 11 }} />
-                        ) : (
-                          <Select
-                            size="small"
-                            value={u.role}
-                            onChange={(e) => updateUserRole(u.id, e.target.value)}
-                            sx={{ fontSize: 12, minWidth: 140 }}
-                          >
-                            {ASSIGNABLE_ROLES.map((r) => (
-                              <MenuItem key={r} value={r} sx={{ fontSize: 12 }}>{ROLE_LABELS[r]}</MenuItem>
-                            ))}
-                          </Select>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <Chip
-                          label={u.active ? 'Faol' : 'Nofaol'}
-                          size="small"
-                          sx={{
-                            fontSize: 11,
-                            bgcolor: u.active ? '#f0fdf4' : '#fee2e2',
-                            color: u.active ? '#22c55e' : '#ef4444',
-                          }}
-                        />
-                      </TableCell>
-                      <TableCell align="right">
-                        {u.id !== currentUser?.id && u.role !== ROLES.ADMIN && (
-                          <IconButton
-                            size="small"
-                            onClick={() => toggleUserActive(u.id, !u.active)}
-                            title={u.active ? 'Nofaol qilish' : 'Faollashtirish'}
-                          >
-                            <Delete style={{ fontSize: 16, color: u.active ? '#9ca3af' : '#22c55e' }} />
-                          </IconButton>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
             </div>
           )}
 

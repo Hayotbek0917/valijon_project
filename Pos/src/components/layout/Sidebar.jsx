@@ -16,6 +16,7 @@ import {
   Person,
   MenuOpen,
   Menu,
+  Groups,
 } from '@mui/icons-material';
 import { Avatar, Collapse, IconButton } from '@mui/material';
 import { useApp } from '../../context/AppContext';
@@ -35,6 +36,7 @@ const navIcons = {
   expire: <WarningAmber fontSize="small" />,
   reports: <Assessment fontSize="small" />,
   settings: <Settings fontSize="small" />,
+  staff: <Groups fontSize="small" />,
 };
 
 function NavButton({ item, isActive, collapsed, onClick }) {

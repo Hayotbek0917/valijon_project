@@ -1,29 +1,83 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
+import { fetchPosDrafts, createPosDraft, deletePosDraft } from '../api/pos';
+import { NAV_MAIN, NAV_BOTTOM, filterByRole } from '../config/navigation';
+import { canAccessRoute } from '../config/roles';
 import {
   Search, Add, Remove, Delete, ShoppingCartCheckout,
-  CategoryOutlined, CalendarToday, Assistant, ArrowBack, ArrowForward, Close
+  CategoryOutlined, CalendarToday, Assistant, Close,
+  PauseCircleOutlined, PlaylistPlay, Menu, ArrowBack,
 } from '@mui/icons-material';
-import { Button, Chip, Divider, IconButton, InputAdornment, TextField, Dialog, DialogTitle, DialogContent, DialogActions, Drawer } from '@mui/material';
+import { Button, Chip, Divider, IconButton, InputAdornment, TextField, Dialog, DialogTitle, DialogContent, DialogActions, Drawer, Badge, List, ListItemButton, ListItemText } from '@mui/material';
 
 const fmt = (n) => n.toLocaleString('uz-UZ') + " so'm";
-const itemsPerPage = 6;
+const NUMPAD = ['1', '2', '3', '4', '5', '6', '7', '8', '9', 'C', '0', 'OK'];
+const TOUCH_BTN = { minHeight: 48, fontSize: 15, fontWeight: 700, borderRadius: 12, textTransform: 'none' };
 
 export default function POS() {
-  const { getBusinessProducts, getProductStock, updateProductStock, setSales } = useApp();
+  const navigate = useNavigate();
+  const { getBusinessProducts, getProductStock, addSale, saving, currentBusinessId } = useApp();
   const { currentUser } = useAuth();
   const cashierName = currentUser?.name ?? 'Kassir';
   
   const [search, setSearch] = useState('');
   const [selectedCat, setSelectedCat] = useState('Barchasi');
+  const [menuOpen, setMenuOpen] = useState(false);
   const [cart, setCart] = useState([]);
   const [payMethod, setPayMethod] = useState('Naqd');
-  const [currentPage, setCurrentPage] = useState(1);
+
+  const [posDrafts, setPosDrafts] = useState([]);
+  const [draftsDrawerOpen, setDraftsDrawerOpen] = useState(false);
+  const [activeDraftId, setActiveDraftId] = useState(null);
+  const [draftSaving, setDraftSaving] = useState(false);
+  const [qtyEditItem, setQtyEditItem] = useState(null);
+  const [qtyInput, setQtyInput] = useState('');
   
   // Dialog and AI drawer states
   const [receiptDialog, setReceiptDialog] = useState(null);
   const [aiOpen, setAiOpen] = useState(false);
+
+  const loadDrafts = useCallback(async () => {
+    if (!currentBusinessId) return;
+    try {
+      const list = await fetchPosDrafts(currentBusinessId);
+      setPosDrafts(list);
+    } catch {
+      setPosDrafts([]);
+    }
+  }, [currentBusinessId]);
+
+  useEffect(() => {
+    loadDrafts();
+  }, [loadDrafts]);
+
+  /** Boshqa chernoviklarda band qilingan miqdor (joriy ochilgan chernovikdan tashqari) */
+  const getDraftReserved = useCallback((productId, excludeDraftId = activeDraftId) => {
+    let n = 0;
+    for (const d of posDrafts) {
+      if (excludeDraftId && d.id === excludeDraftId) continue;
+      for (const item of d.items || []) {
+        if (Number(item.id) === Number(productId)) {
+          n += Number(item.qty) || 0;
+        }
+      }
+    }
+    return n;
+  }, [posDrafts, activeDraftId]);
+
+  /** Savatga qo'shish mumkin bo'lgan maksimal miqdor */
+  const getMaxQtyForProduct = useCallback((productId, excludeDraftId = activeDraftId) => {
+    const physical = getProductStock(productId);
+    const reserved = getDraftReserved(productId, excludeDraftId);
+    return Math.max(0, physical - reserved);
+  }, [getProductStock, getDraftReserved, activeDraftId]);
+
+  /** Yana 1 ta qo'shish mumkinmi (joriy savat hisobga olinadi) */
+  const canAddMoreToCart = useCallback((productId, currentQtyInCart) => {
+    return currentQtyInCart < getMaxQtyForProduct(productId);
+  }, [getMaxQtyForProduct]);
 
   // Time state
   const [time, setTime] = useState(new Date());
@@ -41,49 +95,59 @@ export default function POS() {
   const categoriesList = ['Barchasi', ...new Set(activeProducts.map(p => p.category))];
 
   const filtered = activeProducts.filter((p) => {
-    const matchCat = !search.trim() ? (selectedCat === 'Barchasi' || p.category === selectedCat) : true;
-    const matchSearch = p.name.toLowerCase().includes(search.toLowerCase()) || (p.barcode && p.barcode.includes(search.trim()));
+    const matchCat = selectedCat === 'Barchasi' || p.category === selectedCat;
+    const matchSearch = !search.trim()
+      || p.name.toLowerCase().includes(search.toLowerCase())
+      || (p.barcode && p.barcode.includes(search.trim()));
     return matchCat && matchSearch;
   });
+
+  const menuPages = useMemo(() => {
+    const role = currentUser?.role;
+    if (!role) return [];
+    const items = [
+      ...filterByRole(NAV_MAIN, role),
+      ...filterByRole(NAV_BOTTOM, role),
+    ].filter((item) => item.path !== '/pos' && canAccessRoute(role, item.path));
+    return items;
+  }, [currentUser?.role]);
 
   useEffect(() => {
     if (!search.trim()) return;
     const barcodeTrimmed = search.trim();
     const exactMatch = activeProducts.find(p => p.barcode === barcodeTrimmed);
     if (exactMatch) {
-      const stock = getProductStock(exactMatch.id);
-      if (stock > 0) {
-        setCart((prev) => {
-          const existing = prev.find((i) => i.id === exactMatch.id);
-          if (existing) {
-            if (existing.qty >= stock) {
-              alert("Skladda yetarli mahsulot yo'q!");
-              return prev;
-            }
-            return prev.map((i) => i.id === exactMatch.id ? { ...i, qty: i.qty + 1 } : i);
+      setCart((prev) => {
+        const existing = prev.find((i) => i.id === exactMatch.id);
+        const maxQty = getMaxQtyForProduct(exactMatch.id);
+        if (maxQty < 1) {
+          alert(`${exactMatch.name}: boshqa navbatda band — sotish uchun qolmagan!`);
+          return prev;
+        }
+        if (existing) {
+          if (!canAddMoreToCart(exactMatch.id, existing.qty)) {
+            alert("Skladda yetarli mahsulot yo'q (navbatlarda band qilingan)!");
+            return prev;
           }
-          return [...prev, { ...exactMatch, qty: 1 }];
-        });
-        setSearch('');
-      } else {
-        alert(`${exactMatch.name} skladda qolmagan!`);
-        setSearch('');
-      }
+          return prev.map((i) => i.id === exactMatch.id ? { ...i, qty: i.qty + 1 } : i);
+        }
+        return [...prev, { ...exactMatch, qty: 1 }];
+      });
+      setSearch('');
     }
-  }, [search, activeProducts, getProductStock]);
-
-  // Pagination for products
-  const totalPages = Math.ceil(filtered.length / itemsPerPage) || 1;
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const paginatedProducts = filtered.slice(startIndex, startIndex + itemsPerPage);
+  }, [search, activeProducts, getMaxQtyForProduct, canAddMoreToCart]);
 
   const addToCart = (product) => {
-    const currentStock = getProductStock(product.id);
+    const maxQty = getMaxQtyForProduct(product.id);
+    if (maxQty < 1) {
+      alert(`${product.name}: boshqa navbatda band — sotib bo'lmaydi!`);
+      return;
+    }
     setCart((prev) => {
       const existing = prev.find((i) => i.id === product.id);
       if (existing) {
-        if (existing.qty >= currentStock) {
-          alert("Skladda yetarli mahsulot yo'q!");
+        if (!canAddMoreToCart(product.id, existing.qty)) {
+          alert("Skladda yetarli mahsulot yo'q (navbatlarda band qilingan)!");
           return prev;
         }
         return prev.map((i) => i.id === product.id ? { ...i, qty: i.qty + 1 } : i);
@@ -93,13 +157,13 @@ export default function POS() {
   };
 
   const updateQty = (id, delta) => {
-    const currentStock = getProductStock(id);
+    const maxQty = getMaxQtyForProduct(id);
     setCart((prev) =>
       prev.map((i) => {
         if (i.id === id) {
           const newQty = i.qty + delta;
-          if (newQty > currentStock) {
-            alert("Skladda yetarli mahsulot yo'q!");
+          if (newQty > maxQty) {
+            alert(`Eng ko'pi ${maxQty} ta (navbatlarda band qilinganlar hisobga olingan)!`);
             return i;
           }
           return { ...i, qty: Math.max(1, newQty) };
@@ -111,18 +175,154 @@ export default function POS() {
 
   const removeItem = (id) => setCart((prev) => prev.filter((i) => i.id !== id));
 
+  const openQtyEditor = (item) => {
+    setQtyEditItem(item);
+    setQtyInput(String(item.qty));
+  };
+
+  const applyQtyInput = () => {
+    if (!qtyEditItem) return;
+    const maxQty = getMaxQtyForProduct(qtyEditItem.id);
+    const n = parseInt(qtyInput, 10);
+    if (!qtyInput.trim() || Number.isNaN(n) || n < 1) {
+      alert('To\'g\'ri son kiriting');
+      return;
+    }
+    if (n > maxQty) {
+      alert(`Faqat ${maxQty} ta mavjud (buncha mahsulot yo'q)!`);
+      return;
+    }
+    setCart((prev) =>
+      prev.map((i) => (i.id === qtyEditItem.id ? { ...i, qty: n } : i))
+    );
+    setQtyEditItem(null);
+    setQtyInput('');
+  };
+
+  const handleNumpad = (key) => {
+    if (key === 'C') {
+      setQtyInput('');
+      return;
+    }
+    if (key === 'OK') {
+      applyQtyInput();
+      return;
+    }
+    setQtyInput((prev) => {
+      const next = `${prev}${key}`;
+      if (next.length > 5) return prev;
+      return next;
+    });
+  };
+
   const subtotal = cart.reduce((s, i) => s + i.price * i.qty, 0);
   const total = subtotal;
 
-  const clearCart = () => setCart([]);
+  const clearCart = () => {
+    setCart([]);
+    setActiveDraftId(null);
+  };
 
-  const checkout = () => {
+  const serializeCartItems = (items) =>
+    items.map((i) => ({
+      id: i.id,
+      name: i.name,
+      price: i.price,
+      qty: i.qty,
+      emoji: i.emoji,
+      barcode: i.barcode,
+      category: i.category,
+      cost: i.cost,
+    }));
+
+  const saveCartToDraft = async () => {
+    if (!currentBusinessId) return;
+    if (cart.length === 0) {
+      alert("Savat bo'sh — avval mahsulot qo'shing");
+      return;
+    }
+    const defaultLabel = `Navbat #${posDrafts.length + 1}`;
+    const label = window.prompt('Navbat nomi (masalan: qizil ko\'ylakli mijoz):', defaultLabel);
+    if (label === null) return;
+
+    setDraftSaving(true);
+    try {
+      await createPosDraft(currentBusinessId, {
+        label: label.trim() || defaultLabel,
+        payMethod,
+        items: serializeCartItems(cart),
+        total,
+      });
+      setCart([]);
+      setActiveDraftId(null);
+      await loadDrafts();
+    } catch (err) {
+      alert(err.message || 'Chernovik saqlanmadi');
+    } finally {
+      setDraftSaving(false);
+    }
+  };
+
+  const restoreDraft = (draft) => {
+    if (cart.length > 0) {
+      const ok = window.confirm(
+        "Joriy savat bekor qilinadi. Saqlangan navbat ochilsinmi?"
+      );
+      if (!ok) return;
+    }
+    const restored = [];
+    const skipped = [];
+    for (const item of draft.items || []) {
+      const maxQty = getMaxQtyForProduct(item.id, draft.id);
+      const want = Number(item.qty) || 1;
+      if (maxQty < 1) {
+        skipped.push(item.name);
+        continue;
+      }
+      const qty = Math.min(want, maxQty);
+      if (qty < want) {
+        alert(`${item.name}: faqat ${qty} ta qoldi (${want - qty} ta boshqa mijozga sotilgan yoki band).`);
+      }
+      restored.push({ ...item, qty });
+    }
+    if (restored.length === 0) {
+      alert(
+        skipped.length
+          ? `Savat ochilmadi — mahsulotlar boshqa mijozga sotilgan yoki band: ${skipped.join(', ')}`
+          : 'Savat bo\'sh'
+      );
+      return;
+    }
+    setCart(restored);
+    setPayMethod(draft.payMethod || 'Naqd');
+    setActiveDraftId(draft.id);
+    setDraftsDrawerOpen(false);
+  };
+
+  const handleDeleteDraft = async (draftId, e) => {
+    e?.stopPropagation();
+    if (!window.confirm('Bu chernovik o\'chirilsinmi?')) return;
+    try {
+      await deletePosDraft(draftId);
+      if (activeDraftId === draftId) setActiveDraftId(null);
+      await loadDrafts();
+    } catch (err) {
+      alert(err.message || 'O\'chirib bo\'lmadi');
+    }
+  };
+
+  const activeDraftLabel = posDrafts.find((d) => d.id === activeDraftId)?.label;
+
+  const checkout = async () => {
     if (cart.length === 0) return;
 
-    // Deduct stock for each cart item
-    cart.forEach(item => {
-      updateProductStock(item.id, -item.qty);
-    });
+    for (const item of cart) {
+      const maxQty = getMaxQtyForProduct(item.id);
+      if (item.qty > maxQty) {
+        alert(`${item.name}: faqat ${maxQty} ta sotish mumkin (qoldiq yoki navbatlar band).`);
+        return;
+      }
+    }
 
     const now = new Date();
     const formattedTime = now.toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit' });
@@ -130,6 +330,7 @@ export default function POS() {
     const txnId = `TXN-${Date.now().toString().slice(-6)}`;
 
     const newSale = {
+      externalId: txnId,
       id: txnId,
       date: formattedDate,
       time: formattedTime,
@@ -137,188 +338,214 @@ export default function POS() {
       amount: total,
       method: payMethod,
       cashier: cashierName,
-      businessId: activeProducts[0]?.businessId || 1
+      posDraftId: activeDraftId,
     };
 
-    // Save to global sales
-    setSales(prev => [newSale, ...prev]);
+    const result = await addSale(newSale);
+    if (!result.ok) {
+      alert(result.error);
+      return;
+    }
 
-    // Show custom success dialog receipt
     setReceiptDialog(newSale);
-    clearCart();
+    if (activeDraftId) {
+      try {
+        await deletePosDraft(activeDraftId);
+      } catch {
+        /* chernovik allaqachon o'chirilgan bo'lishi mumkin */
+      }
+      setActiveDraftId(null);
+      await loadDrafts();
+    }
+    setCart([]);
   };
 
   return (
-    <div className="flex flex-col gap-4 h-[calc(100vh-90px)]">
-      {/* Top Banner */}
-      <div className="flex items-center justify-between bg-gradient-to-r from-blue-600 via-indigo-600 to-indigo-700 text-white px-5 py-3 rounded-2xl shadow-md border border-blue-500/20">
-        <div className="flex items-center gap-3">
-          <span className="font-bold text-base tracking-wide">Kassa Tizimi (POS)</span>
-          <Chip label="ONLINE" size="small" sx={{ bgcolor: 'rgba(34, 197, 94, 0.2)', color: '#4ade80', fontWeight: 700, fontSize: 10, border: '1px solid rgba(34, 197, 94, 0.4)' }} />
-        </div>
-        <div className="flex items-center gap-4 text-xs">
-          <div className="flex items-center gap-2">
-            <span className="w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse"></span>
-            <span className="text-gray-200">Kassir: <b className="text-white font-semibold">{cashierName}</b></span>
+    <div className="flex flex-col h-full w-full overflow-hidden">
+      {/* Kassa sarlavha — monoblok */}
+      <div className="shrink-0 flex items-center justify-between bg-gradient-to-r from-blue-600 to-indigo-700 text-white px-3 py-2 shadow-md gap-2">
+        <div className="flex items-center gap-2 min-w-0">
+          <IconButton
+            onClick={() => setMenuOpen(true)}
+            sx={{ color: '#fff', bgcolor: 'rgba(255,255,255,0.15)', width: 48, height: 48, '&:hover': { bgcolor: 'rgba(255,255,255,0.25)' } }}
+            aria-label="Menyu"
+          >
+            <Menu />
+          </IconButton>
+          <div className="min-w-0">
+            <span className="font-bold text-lg block leading-tight">KASSA</span>
+            <span className="text-xs text-blue-100 truncate block">{cashierName}</span>
           </div>
-          <span className="text-indigo-400">|</span>
-          <span className="text-gray-200 font-mono bg-white/10 px-2.5 py-1 rounded-lg font-bold">
-            {time.toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-          </span>
+          <Chip label="ONLINE" size="small" sx={{ bgcolor: 'rgba(34,197,94,0.25)', color: '#86efac', fontWeight: 700, fontSize: 10, display: { xs: 'none', sm: 'flex' } }} />
         </div>
+        <span className="font-mono text-base sm:text-lg font-bold bg-white/15 px-3 py-1.5 rounded-xl shrink-0">
+          {time.toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+        </span>
       </div>
 
-      <div className="flex gap-4 flex-1 min-h-0">
-        {/* Products Panel */}
-        <div className="flex-1 flex flex-col bg-white rounded-2xl border border-gray-150 overflow-hidden shadow-sm">
-          {/* Search */}
-          <div className="p-3 bg-gray-50 border-b border-gray-100 flex gap-2">
+      <Drawer anchor="left" open={menuOpen} onClose={() => setMenuOpen(false)} PaperProps={{ sx: { width: 280 } }}>
+        <div className="p-4 border-b flex items-center justify-between">
+          <p className="font-bold text-gray-800">Boshqa bo&apos;limlar</p>
+          <IconButton size="small" onClick={() => setMenuOpen(false)}><Close /></IconButton>
+        </div>
+        <List sx={{ py: 1 }}>
+          {menuPages.length === 0 ? (
+            <p className="px-4 py-6 text-sm text-gray-500">Boshqa sahifa yo&apos;q</p>
+          ) : (
+            menuPages.map((item) => (
+              <ListItemButton
+                key={item.path}
+                onClick={() => { setMenuOpen(false); navigate(item.path); }}
+                sx={{ py: 1.5, minHeight: 52 }}
+              >
+                <ListItemText primary={item.label} secondary={item.title} primaryTypographyProps={{ fontWeight: 600 }} />
+              </ListItemButton>
+            ))
+          )}
+        </List>
+        <div className="p-4 border-t mt-auto">
+          <Button
+            fullWidth
+            variant="outlined"
+            startIcon={<ArrowBack />}
+            onClick={() => { setMenuOpen(false); navigate('/products'); }}
+            sx={{ ...TOUCH_BTN, borderColor: '#4361ee', color: '#4361ee' }}
+          >
+            Mahsulotlar
+          </Button>
+        </div>
+      </Drawer>
+
+      <div className="flex flex-1 min-h-0 gap-2 p-2 overflow-hidden">
+        {/* Mahsulotlar — scroll */}
+        <div className="flex-1 flex flex-col bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm min-w-0">
+          <div className="shrink-0 p-2.5 bg-gray-50 border-b border-gray-100">
             <TextField
-              size="small"
-              placeholder="Mahsulot qidirish (Shtrix-kod yoki Nomi)..."
+              placeholder="Qidirish yoki shtrix-kod..."
               value={search}
-              onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }}
+              onChange={(e) => setSearch(e.target.value)}
               fullWidth
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
-                    <Search style={{ fontSize: 18, color: '#9ca3af' }} />
+                    <Search style={{ fontSize: 22, color: '#9ca3af' }} />
                   </InputAdornment>
                 ),
-                style: { borderRadius: 10, fontSize: 13, backgroundColor: '#ffffff' },
               }}
-              sx={{ 
-                '& .MuiOutlinedInput-root': { 
-                  '& fieldset': { borderColor: '#e5e7eb' },
-                  '&:hover fieldset': { borderColor: '#4361ee' },
-                  '&.Mui-focused fieldset': { borderColor: '#4361ee', borderWidth: '1px' }
-                } 
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  minHeight: 52,
+                  fontSize: 16,
+                  borderRadius: 2,
+                  bgcolor: '#fff',
+                },
               }}
             />
           </div>
 
-          {/* Categories Tab Bar */}
-          <div className="flex px-3 bg-gray-50 border-b border-gray-100 overflow-x-auto scrollbar-none gap-1">
-            {categoriesList.map((cat) => (
-              <button
-                key={cat}
-                onClick={() => { setSelectedCat(cat); setCurrentPage(1); }}
-                className="whitespace-nowrap text-xs px-4 py-2.5 font-bold transition-all flex-shrink-0"
-                style={{
-                  borderBottom: selectedCat === cat ? '3px solid #4361ee' : '3px solid transparent',
-                  color: selectedCat === cat ? '#4361ee' : '#6b7280',
-                  fontWeight: selectedCat === cat ? '700' : '600'
-                }}
-              >
-                {cat}
-              </button>
-            ))}
+          <div className="shrink-0 px-2 py-2 bg-white border-b border-gray-100 space-y-2">
+            <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
+              {categoriesList.map((cat) => (
+                <button
+                  key={cat}
+                  type="button"
+                  onClick={() => setSelectedCat(cat)}
+                  className="shrink-0 px-4 py-2.5 rounded-xl text-sm font-bold transition-all min-h-[44px]"
+                  style={{
+                    background: selectedCat === cat ? '#4361ee' : '#f3f4f6',
+                    color: selectedCat === cat ? '#fff' : '#4b5563',
+                  }}
+                >
+                  {cat}
+                </button>
+              ))}
+            </div>
+            <p className="text-xs text-gray-500 px-1">{filtered.length} ta mahsulot</p>
           </div>
 
-          {/* Product Grid */}
-          <div className="flex-1 overflow-y-auto p-4 grid grid-cols-3 gap-3 content-start bg-gray-50/50">
-            {paginatedProducts.length === 0 ? (
-              <div className="col-span-3 text-center py-10 text-gray-400 text-sm">
-                Mahsulotlar topilmadi
-              </div>
+          <div className="flex-1 min-h-0 overflow-y-auto p-2.5 grid grid-cols-3 xl:grid-cols-4 gap-2.5 content-start bg-[#f8fafc] auto-rows-min">
+            {filtered.length === 0 ? (
+              <div className="col-span-full text-center py-16 text-gray-400">Mahsulot topilmadi</div>
             ) : (
-              paginatedProducts.map((p) => {
-                const stock = getProductStock(p.id);
+              filtered.map((p) => {
+                const physical = getProductStock(p.id);
+                const available = getMaxQtyForProduct(p.id);
                 return (
                   <button
                     key={p.id}
-                    onClick={() => stock > 0 && addToCart(p)}
-                    disabled={stock === 0}
-                    className="bg-white rounded-2xl border border-gray-200/80 p-3.5 text-left hover:border-blue-500 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 disabled:opacity-45 disabled:bg-gray-100 disabled:translate-y-0 disabled:shadow-none disabled:cursor-not-allowed flex flex-col justify-between h-[135px] shadow-sm relative group"
+                    type="button"
+                    onClick={() => available > 0 && addToCart(p)}
+                    disabled={available === 0}
+                    className="bg-white rounded-xl border-2 p-3 text-left transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed min-h-[128px] flex flex-col gap-2 shadow-sm"
+                    style={{ borderColor: available > 0 ? '#e5e7eb' : '#fecaca' }}
                   >
-                    <div className="w-full">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-gray-50 flex items-center justify-center shrink-0 border border-gray-100 overflow-hidden shadow-inner group-hover:scale-105 transition-transform duration-200">
-                          {p.image ? (
-                            <img src={p.image} alt={p.name} className="w-full h-full object-cover" />
-                          ) : (
-                            <span className="text-xl">📦</span>
-                          )}
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <p className="text-xs font-bold text-gray-800 leading-tight truncate" title={p.name}>{p.name}</p>
-                          <p className="text-[10px] text-gray-400 font-mono mt-0.5 truncate">{p.barcode || 'Shtrix-kod yo\'q'}</p>
-                        </div>
+                    <div className="flex items-center gap-2.5 min-h-0">
+                      <div className="w-14 h-14 rounded-lg bg-gray-50 flex items-center justify-center shrink-0 border border-gray-100 text-2xl">
+                        {p.image ? <img src={p.image} alt="" className="w-full h-full object-cover rounded-lg" /> : '📦'}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-bold text-gray-900 leading-snug line-clamp-2">{p.name}</p>
+                        <p className="text-[11px] text-gray-400 truncate mt-0.5">{p.category}</p>
                       </div>
                     </div>
-                    <div className="w-full mt-3 pt-2.5 border-t border-gray-100 flex items-end justify-between">
-                      <div>
-                        <p className="text-[9px] text-gray-400 uppercase font-bold tracking-wider">Narxi</p>
-                        <p className="text-xs font-black text-blue-600">{fmt(p.price)}</p>
-                      </div>
-                      <div className="text-right">
-                        {stock > 0 ? (
-                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-green-50 text-green-600 border border-green-200 font-bold">
-                            {stock} ta
-                          </span>
-                        ) : (
-                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-red-50 text-red-600 border border-red-200 font-bold">
-                            Tugagan
-                          </span>
-                        )}
-                      </div>
+                    <div className="flex items-center justify-between mt-auto pt-2 border-t border-gray-100">
+                      <p className="text-base font-black text-blue-600 leading-none">{fmt(p.price)}</p>
+                      {available > 0 ? (
+                        <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-green-50 text-green-700 border border-green-200">
+                          {available} ta
+                        </span>
+                      ) : physical > 0 ? (
+                        <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-amber-50 text-amber-700">Band</span>
+                      ) : (
+                        <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-red-50 text-red-600">Tugagan</span>
+                      )}
                     </div>
                   </button>
                 );
               })
             )}
           </div>
-
-          {/* Pagination Controls */}
-          <div className="p-3 border-t border-gray-100 flex items-center justify-between bg-gray-50">
-            <span className="text-xs font-semibold text-gray-500">
-              Jami: {filtered.length} ta mahsulot
-            </span>
-            <div className="flex items-center gap-2">
-              <Button
-                size="small"
-                disabled={currentPage === 1}
-                onClick={() => setCurrentPage(p => p - 1)}
-                startIcon={<ArrowBack style={{ fontSize: 14 }} />}
-                sx={{ 
-                  textTransform: 'none', 
-                  fontSize: 12, 
-                  color: '#4361ee',
-                  fontWeight: 600,
-                  '&.Mui-disabled': { color: '#9ca3af' }
-                }}
-              >
-                Oldingi
-              </Button>
-              <span className="text-xs font-bold px-2.5 py-1 bg-white border rounded-lg shadow-sm">
-                {currentPage} / {totalPages}
-              </span>
-              <Button
-                size="small"
-                disabled={currentPage === totalPages}
-                onClick={() => setCurrentPage(p => p + 1)}
-                endIcon={<ArrowForward style={{ fontSize: 14 }} />}
-                sx={{ 
-                  textTransform: 'none', 
-                  fontSize: 12, 
-                  color: '#4361ee',
-                  fontWeight: 600,
-                  '&.Mui-disabled': { color: '#9ca3af' }
-                }}
-              >
-                Keyingi
-              </Button>
-            </div>
-          </div>
         </div>
 
-        {/* Cart Panel (SAP Receipt View) */}
-        <div className="w-[380px] flex flex-col bg-white rounded-2xl border border-gray-150 overflow-hidden shadow-sm">
-          <div className="p-4 bg-gray-50 border-b border-gray-100 flex items-center justify-between">
-            <h2 className="font-bold text-gray-800 text-xs uppercase tracking-wider">Joriy Savatcha</h2>
-            <span className="text-[10px] font-extrabold bg-blue-600 text-white px-2.5 py-1 rounded-full shadow-sm">
-              {cart.length} TA MAXSULOT
-            </span>
+        {/* Savat */}
+        <div className="w-[min(420px,38vw)] shrink-0 flex flex-col bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
+          <div className="p-3 bg-gray-50 border-b border-gray-100 space-y-2.5">
+            <div className="flex items-center justify-between gap-2">
+              <h2 className="font-bold text-gray-800 text-sm uppercase">Savatcha</h2>
+              <span className="text-sm font-extrabold bg-blue-600 text-white px-3 py-1 rounded-full">
+                {cart.length}
+              </span>
+            </div>
+            {activeDraftLabel && (
+              <p className="text-[10px] text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-2 py-1">
+                Chernovik: <b>{activeDraftLabel}</b>
+              </p>
+            )}
+            <div className="flex gap-2">
+              <Button
+                variant="outlined"
+                startIcon={<PauseCircleOutlined />}
+                onClick={saveCartToDraft}
+                disabled={cart.length === 0 || draftSaving}
+                sx={{
+                  flex: 1, ...TOUCH_BTN,
+                  borderColor: '#f59e0b', color: '#b45309',
+                  '&:hover': { borderColor: '#d97706', bgcolor: '#fffbeb' },
+                }}
+              >
+                Navbat
+              </Button>
+              <Badge badgeContent={posDrafts.length} color="warning" max={99}>
+                <Button
+                  variant="contained"
+                  startIcon={<PlaylistPlay />}
+                  onClick={() => setDraftsDrawerOpen(true)}
+                  sx={{ ...TOUCH_BTN, bgcolor: '#6366f1', boxShadow: 'none', '&:hover': { bgcolor: '#4f46e5' } }}
+                >
+                  Ro&apos;yxat
+                </Button>
+              </Badge>
+            </div>
           </div>
 
           {/* Cart Items Table */}
@@ -332,54 +559,61 @@ export default function POS() {
             ) : (
               <table className="w-full text-left border-collapse">
                 <thead>
-                  <tr className="bg-gray-50/60 border-b border-gray-100 text-[10px] text-gray-500 uppercase font-bold">
-                    <th className="p-3 pl-4">Mahsulot</th>
-                    <th className="p-3 text-center w-24">Soni</th>
-                    <th className="p-3 text-right">Summa</th>
-                    <th className="p-3 text-center w-10"></th>
+                  <tr className="bg-gray-50/60 border-b border-gray-100 text-xs text-gray-500 uppercase font-bold">
+                    <th className="p-2 pl-3">Mahsulot</th>
+                    <th className="p-2 text-center w-32">Soni</th>
+                    <th className="p-2 text-right">Summa</th>
+                    <th className="p-2 w-12"></th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {cart.map((item) => (
-                    <tr key={item.id} className="text-xs hover:bg-gray-50/55 transition-colors">
-                      <td className="p-3 pl-4 min-w-0">
-                        <p className="font-bold text-gray-800 truncate w-32" title={item.name}>{item.name}</p>
-                        <p className="text-[10px] text-blue-600 font-semibold mt-0.5">{fmt(item.price)}</p>
+                    <tr key={item.id} className="text-sm hover:bg-gray-50/55">
+                      <td className="p-2 pl-3 min-w-0">
+                        <p className="font-bold text-gray-800 truncate max-w-[120px]" title={item.name}>{item.name}</p>
+                        <p className="text-xs text-blue-600 font-semibold">{fmt(item.price)}</p>
                       </td>
-                      <td className="p-3">
-                        <div className="flex items-center justify-between border border-gray-200 rounded-xl bg-white p-0.5 w-[90px] shadow-sm">
+                      <td className="p-2">
+                        <div className="flex items-center justify-between border-2 border-gray-200 rounded-xl bg-white p-1 w-[120px]">
                           <button
+                            type="button"
                             onClick={() => updateQty(item.id, -1)}
-                            className="w-6 h-6 flex items-center justify-center bg-gray-50 hover:bg-gray-100 text-gray-800 rounded-lg font-bold text-xs transition-colors"
+                            className="w-10 h-10 flex items-center justify-center bg-gray-100 rounded-lg font-bold text-lg active:bg-gray-200"
                           >
-                            -
+                            −
                           </button>
-                          <span className="text-[11px] font-bold text-gray-800 w-6 text-center">{item.qty}</span>
                           <button
+                            type="button"
+                            onClick={() => openQtyEditor(item)}
+                            className="text-base font-bold text-blue-600 min-w-[36px] text-center py-1 rounded-lg active:bg-blue-50"
+                          >
+                            {item.qty}
+                          </button>
+                          <button
+                            type="button"
                             onClick={() => updateQty(item.id, 1)}
-                            className="w-6 h-6 flex items-center justify-center bg-gray-50 hover:bg-gray-100 text-gray-800 rounded-lg font-bold text-xs transition-colors"
+                            className="w-10 h-10 flex items-center justify-center bg-gray-100 rounded-lg font-bold text-lg active:bg-gray-200"
                           >
                             +
                           </button>
                         </div>
                       </td>
-                      <td className="p-3 text-right font-extrabold text-gray-800">
+                      <td className="p-2 text-right font-bold text-gray-800 text-sm">
                         {fmt(item.price * item.qty).replace(" so'm", "")}
                       </td>
-                      <td className="p-3 text-center">
+                      <td className="p-2 text-center">
                         <IconButton
                           onClick={() => removeItem(item.id)}
-                          size="small"
-                          sx={{ 
-                            color: '#ef4444', 
+                          sx={{
+                            color: '#ef4444',
                             bgcolor: '#fef2f2',
                             border: '1px solid #fee2e2',
                             borderRadius: 2,
-                            p: 0.7,
-                            '&:hover': { bgcolor: '#fecaca' }
+                            width: 44,
+                            height: 44,
                           }}
                         >
-                          <Delete style={{ fontSize: 15 }} />
+                          <Delete />
                         </IconButton>
                       </td>
                     </tr>
@@ -401,25 +635,26 @@ export default function POS() {
                 <span className="font-semibold text-gray-700">{cart.reduce((sum, item) => sum + item.qty, 0)} ta</span>
               </div>
               <Divider sx={{ my: 1 }} />
-              <div className="flex justify-between items-center text-sm font-black text-gray-850">
-                <span className="text-xs uppercase tracking-wider text-gray-400 font-bold">Jami summa:</span>
-                <span className="text-blue-600 font-black text-lg">{fmt(total)}</span>
+              <div className="flex justify-between items-center">
+                <span className="text-sm uppercase text-gray-500 font-bold">Jami:</span>
+                <span className="text-blue-600 font-black text-2xl">{fmt(total)}</span>
               </div>
             </div>
 
             {/* Payment Method Selector */}
             <div>
-              <p className="text-[10px] uppercase font-bold text-gray-400 mb-1.5 tracking-wider">To'lov usuli</p>
-              <div className="flex border border-gray-200 bg-white rounded-xl overflow-hidden p-0.5 shadow-sm">
+              <p className="text-xs uppercase font-bold text-gray-400 mb-2">To&apos;lov</p>
+              <div className="flex gap-2">
                 {['Naqd', 'Karta', 'Online'].map((m) => (
                   <button
                     key={m}
                     type="button"
                     onClick={() => setPayMethod(m)}
-                    className="flex-1 text-xs py-2 font-bold rounded-lg transition-all"
+                    className="flex-1 font-bold rounded-xl transition-all min-h-[48px] text-sm"
                     style={{
-                      background: payMethod === m ? '#4361ee' : 'transparent',
-                      color: payMethod === m ? '#ffffff' : '#4b5563',
+                      background: payMethod === m ? '#4361ee' : '#f3f4f6',
+                      color: payMethod === m ? '#fff' : '#4b5563',
+                      border: payMethod === m ? 'none' : '1px solid #e5e7eb',
                     }}
                   >
                     {m}
@@ -431,27 +666,133 @@ export default function POS() {
             <Button
               fullWidth
               variant="contained"
-              startIcon={<ShoppingCartCheckout />}
+              startIcon={<ShoppingCartCheckout sx={{ fontSize: 26 }} />}
               onClick={checkout}
               disabled={cart.length === 0}
               sx={{
                 bgcolor: '#4361ee',
-                color: '#ffffff',
+                color: '#fff',
                 borderRadius: 3,
                 textTransform: 'none',
-                fontWeight: 'bold',
-                fontSize: 13,
-                py: 1.4,
-                boxShadow: 'none',
-                '&:hover': { bgcolor: '#3451d1', boxShadow: 'none' },
-                '&.Mui-disabled': { bgcolor: '#e5e7eb', color: '#9ca3af' }
+                fontWeight: 800,
+                fontSize: 17,
+                minHeight: 56,
+                py: 1.5,
+                boxShadow: '0 4px 14px rgba(67,97,238,0.35)',
+                '&:hover': { bgcolor: '#3451d1' },
+                '&.Mui-disabled': { bgcolor: '#e5e7eb', color: '#9ca3af' },
               }}
             >
-              Sotish va Chek berish
+              SOTISH
             </Button>
           </div>
         </div>
       </div>
+
+      {/* Miqdor kiritish */}
+      <Dialog open={!!qtyEditItem} onClose={() => setQtyEditItem(null)} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ fontWeight: 700, fontSize: 16 }}>
+          Miqdor: {qtyEditItem?.name}
+        </DialogTitle>
+        <DialogContent sx={{ pt: 1 }}>
+          <p className="text-xs text-gray-500 mb-2">
+            Maksimal: <b>{qtyEditItem ? getMaxQtyForProduct(qtyEditItem.id) : 0}</b> ta
+          </p>
+          <TextField
+            fullWidth
+            size="small"
+            label="Soni"
+            type="number"
+            value={qtyInput}
+            onChange={(e) => setQtyInput(e.target.value.replace(/\D/g, '').slice(0, 5))}
+            onKeyDown={(e) => e.key === 'Enter' && applyQtyInput()}
+            inputProps={{ min: 1, max: qtyEditItem ? getMaxQtyForProduct(qtyEditItem.id) : 999 }}
+            sx={{ mb: 2, '& .MuiOutlinedInput-root': { borderRadius: 2, fontSize: 18, fontWeight: 700 } }}
+          />
+          <div className="grid grid-cols-3 gap-2">
+            {NUMPAD.map((key) => (
+              <Button
+                key={key}
+                variant={key === 'OK' ? 'contained' : 'outlined'}
+                onClick={() => handleNumpad(key)}
+                sx={{
+                  minHeight: 52,
+                  fontSize: 18,
+                  fontWeight: 700,
+                  borderRadius: 2,
+                  ...(key === 'OK'
+                    ? { bgcolor: '#4361ee', '&:hover': { bgcolor: '#3451d1' } }
+                    : { borderColor: '#e5e7eb', color: '#374151' }),
+                }}
+              >
+                {key}
+              </Button>
+            ))}
+          </div>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => setQtyEditItem(null)}>Bekor</Button>
+          <Button variant="contained" onClick={applyQtyInput} sx={{ bgcolor: '#4361ee' }}>
+            Tasdiqlash
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Kutilayotgan savatlar (chernoviklar) */}
+      <Drawer
+        anchor="right"
+        open={draftsDrawerOpen}
+        onClose={() => setDraftsDrawerOpen(false)}
+        PaperProps={{ sx: { width: 340 } }}
+      >
+        <div className="p-4 border-b flex items-center justify-between">
+          <div>
+            <h3 className="font-bold text-gray-800">Navbatdagi savatlar</h3>
+            <p className="text-xs text-gray-500">Mijoz ketganda saqlangan chernoviklar</p>
+          </div>
+          <IconButton size="small" onClick={() => setDraftsDrawerOpen(false)}>
+            <Close />
+          </IconButton>
+        </div>
+        <div className="p-3 space-y-2 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 120px)' }}>
+          {posDrafts.length === 0 ? (
+            <p className="text-sm text-gray-500 text-center py-8 px-4">
+              Hozircha navbat yo&apos;q. Savatni to&apos;ldirib «Navbatga saqlash» tugmasini bosing.
+            </p>
+          ) : (
+            posDrafts.map((draft) => (
+              <button
+                key={draft.id}
+                type="button"
+                onClick={() => restoreDraft(draft)}
+                className={`w-full text-left p-3 rounded-xl border transition-all ${
+                  activeDraftId === draft.id
+                    ? 'border-indigo-400 bg-indigo-50 ring-2 ring-indigo-100'
+                    : 'border-gray-200 bg-white hover:border-indigo-200 hover:bg-gray-50'
+                }`}
+              >
+                <div className="flex justify-between items-start gap-2">
+                  <div className="min-w-0">
+                    <p className="font-bold text-sm text-gray-800 truncate">{draft.label}</p>
+                    <p className="text-xs text-gray-500 mt-0.5">
+                      {draft.items?.length || 0} xil · {draft.itemCount || 0} dona
+                    </p>
+                    <p className="text-xs font-bold text-blue-600 mt-1">{fmt(draft.total)}</p>
+                  </div>
+                  <IconButton
+                    size="small"
+                    onClick={(e) => handleDeleteDraft(draft.id, e)}
+                    sx={{ color: '#ef4444' }}
+                  >
+                    <Delete fontSize="small" />
+                  </IconButton>
+                </div>
+                <p className="text-[10px] text-gray-400 mt-2">Bosib davom ettiring →</p>
+              </button>
+            ))
+          )}
+        </div>
+      </Drawer>
 
       {/* Success Dialog Receipt Details */}
       <Dialog open={!!receiptDialog} onClose={() => setReceiptDialog(null)} maxWidth="xs" fullWidth>

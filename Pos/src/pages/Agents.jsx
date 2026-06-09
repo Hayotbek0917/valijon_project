@@ -1,32 +1,37 @@
 
 import { useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { Add, Search, Person, ArrowBack, ArrowForward } from '@mui/icons-material';
-import { Button, Avatar, Chip, InputAdornment, TextField, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Dialog, DialogTitle, DialogContent, DialogActions } from '@mui/material';
+import { Add, Search, Person } from '@mui/icons-material';
+import PagePagination from '../components/ui/PagePagination';
+import { Button, Avatar, Chip, InputAdornment, TextField, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Dialog, DialogTitle, DialogContent, DialogActions, FormControl, InputLabel, Select, MenuItem } from '@mui/material';
 
 const itemsPerPage = 5;
 
 export default function Agents() {
-  const { agents, setAgents, currentBusinessId } = useApp();
+  const { agents, suppliers, currentBusinessId, addAgent, saving } = useApp();
   const [search, setSearch] = useState('');
   const [openAgentDialog, setOpenAgentDialog] = useState(false);
-  const [agentForm, setAgentForm] = useState({ name: '', phone: '', supplierName: '' });
+  const [agentForm, setAgentForm] = useState({ name: '', phone: '', supplierId: '' });
   const [currentPage, setCurrentPage] = useState(1);
 
   const businessAgents = agents.filter(a => a.businessId === currentBusinessId);
+  const businessSuppliers = suppliers.filter(s => s.businessId === currentBusinessId);
 
-  const handleSaveAgent = () => {
-    if (!agentForm.name || !agentForm.phone || !agentForm.supplierName) return;
-    const newAgent = {
-      id: Date.now(),
+  const handleSaveAgent = async () => {
+    if (!agentForm.name || !agentForm.phone || !agentForm.supplierId) return;
+    const sup = businessSuppliers.find(s => String(s.id) === String(agentForm.supplierId));
+    const result = await addAgent({
       name: agentForm.name,
       phone: agentForm.phone,
-      supplierName: agentForm.supplierName,
-      businessId: currentBusinessId
-    };
-    setAgents(prev => [...prev, newAgent]);
-    setAgentForm({ name: '', phone: '', supplierName: '' });
-    setOpenAgentDialog(false);
+      supplierId: sup?.id,
+      supplierName: sup?.name || '',
+    });
+    if (result.ok) {
+      setAgentForm({ name: '', phone: '', supplierId: '' });
+      setOpenAgentDialog(false);
+    } else {
+      alert(result.error);
+    }
   };
 
   const avatarColor = (name) => {
@@ -133,41 +138,22 @@ export default function Agents() {
           </Table>
         </TableContainer>
 
-        {/* Pagination Controls */}
-        <div className="p-3 border-t border-gray-100 flex items-center justify-between bg-gray-50">
-          <span className="text-xs text-gray-500">
-            Jami {filteredAgents.length} tadan {startIndex + 1}-{Math.min(startIndex + itemsPerPage, filteredAgents.length)} ko'rsatilmoqda
-          </span>
-          <div className="flex items-center gap-2">
-            <Button
-              size="small"
-              disabled={currentPage === 1}
-              onClick={() => setCurrentPage(p => p - 1)}
-              startIcon={<ArrowBack />}
-              sx={{ textTransform: 'none', fontSize: 12 }}
-            >
-              Oldingi
-            </Button>
-            <span className="text-xs font-semibold px-2 py-1 bg-white border rounded">
-              {currentPage} / {totalPages}
-            </span>
-            <Button
-              size="small"
-              disabled={currentPage === totalPages}
-              onClick={() => setCurrentPage(p => p + 1)}
-              endIcon={<ArrowForward />}
-              sx={{ textTransform: 'none', fontSize: 12 }}
-            >
-              Keyingi
-            </Button>
-          </div>
-        </div>
+        <PagePagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={setCurrentPage}
+          info={`Jami ${filteredAgents.length} ta · ${startIndex + 1}–${Math.min(startIndex + itemsPerPage, filteredAgents.length)}`}
+        />
       </div>
 
       {/* Dialog for adding Agent */}
       <Dialog open={openAgentDialog} onClose={() => setOpenAgentDialog(false)} maxWidth="xs" fullWidth>
         <DialogTitle sx={{ fontWeight: 700, fontSize: 16, borderBottom: '1px solid #f1f5f9', pb: 2 }}>Yangi Agent Qo'shish</DialogTitle>
         <DialogContent sx={{ pt: 3, display: 'flex', flexDirection: 'column', gap: 2.5 }}>
+          <p className="text-xs text-gray-500 bg-blue-50 border border-blue-100 rounded-lg px-3 py-2 leading-relaxed">
+            Agent faqat diler bilan bog&apos;lanadi. Yangi mahsulotlar <b>Dilerlar → Zakaz</b> da katalogga qo&apos;shiladi,
+            keyin <b>Mahsulotlar</b> sahifasida bildirishnoma orqali ro&apos;yxatga olinadi va <b>Prixod</b>da qoldiq to&apos;ldiriladi.
+          </p>
           <TextField
             label="Agent Ismi"
             value={agentForm.name}
@@ -177,15 +163,13 @@ export default function Agents() {
             required
             sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5 } }}
           />
-          <TextField
-            label="Kompaniya / Agentlik"
-            value={agentForm.supplierName}
-            onChange={(e) => setAgentForm(f => ({ ...f, supplierName: e.target.value }))}
-            size="small"
-            fullWidth
-            required
-            sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5 } }}
-          />
+          <FormControl fullWidth size="small">
+            <InputLabel>Diler (Supplier)</InputLabel>
+            <Select label="Diler (Supplier)" value={agentForm.supplierId}
+              onChange={(e) => setAgentForm(f => ({ ...f, supplierId: e.target.value }))}>
+              {businessSuppliers.map(s => <MenuItem key={s.id} value={s.id}>{s.name}</MenuItem>)}
+            </Select>
+          </FormControl>
           <TextField
             label="Telefon raqami"
             value={agentForm.phone}
@@ -198,7 +182,7 @@ export default function Agents() {
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2, pt: 1, borderTop: '1px solid #f1f5f9' }}>
           <Button onClick={() => setOpenAgentDialog(false)} sx={{ textTransform: 'none', color: '#6b7280' }}>Bekor qilish</Button>
-          <Button onClick={handleSaveAgent} variant="contained"
+          <Button onClick={handleSaveAgent} variant="contained" disabled={saving}
             sx={{ bgcolor: '#4361ee', borderRadius: 1.5, textTransform: 'none', '&:hover': { bgcolor: '#3451d1' } }}>
             Agentni Saqlash
           </Button>

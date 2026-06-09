@@ -1,34 +1,54 @@
 import { useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { Search, Add, CalendarToday, ArrowBack, ArrowForward, Delete, Print } from '@mui/icons-material';
-import { Button, Dialog, DialogTitle, DialogContent, DialogActions, InputAdornment, TextField, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, FormControl, InputLabel, Select, MenuItem, Autocomplete, IconButton } from '@mui/material';
-import { getProductConfig, typeLabels } from '../config/dealerProducts';
+import { Search, Add, CalendarToday, Delete, Print } from '@mui/icons-material';
+import PagePagination from '../components/ui/PagePagination';
+import { Button, Dialog, DialogTitle, DialogContent, DialogActions, InputAdornment, TextField, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, FormControl, InputLabel, Select, MenuItem, Autocomplete, IconButton, Chip } from '@mui/material';
+import {
+  getProductConfig, getOrderProfileFromCatalog, typeLabels,
+  MEASURE_UNITS, MEASURE_LABELS, formatOrderQuantity,
+} from '../config/dealerProducts';
 
 const itemsPerPage = 5;
 
 export default function DealerOrders() {
-  const { dealerOrders, setDealerOrders, suppliers, getBusinessProducts, currentBusinessId } = useApp();
+  const {
+    dealerOrders, suppliers, currentBusinessId, saving,
+    addPurchaseOrder, addSupplier, getSupplierCatalog,
+  } = useApp();
   const [search, setSearch] = useState('');
   const [openAddDialog, setOpenAddDialog] = useState(false);
+  const [openSupplierDialog, setOpenSupplierDialog] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
+  const [saveError, setSaveError] = useState('');
+
+  const [supplierForm, setSupplierForm] = useState({
+    name: '', phone: '', category: '',
+  });
+  const [catalogItems, setCatalogItems] = useState([]);
+  const [newCatalogName, setNewCatalogName] = useState('');
+  const [newCatalogUnit, setNewCatalogUnit] = useState('dona');
 
   // Form states
   const [selectedSupplierId, setSelectedSupplierId] = useState('');
   const [itemsList, setItemsList] = useState([]);
   const [itemForm, setItemForm] = useState({
+    catalogItemId: '',
     productId: '',
+    name: '',
+    unitMode: 'dona',
     qty: '',
     blocksCount: '',
     itemsPerBlock: '',
     type: '',
     size: '',
-    costPrice: ''
+    costPrice: '',
   });
 
   const businessSuppliers = suppliers.filter(s => s.businessId === currentBusinessId);
-  const businessProducts = getBusinessProducts();
   const businessOrders = dealerOrders.filter(o => o.businessId === currentBusinessId);
+  const selectedSupplier = businessSuppliers.find(s => String(s.id) === String(selectedSupplierId));
+  const supplierCatalog = selectedSupplierId ? getSupplierCatalog(selectedSupplierId) : [];
 
   const filtered = businessOrders.filter(o =>
     o.id.toLowerCase().includes(search.toLowerCase()) ||
@@ -39,6 +59,13 @@ export default function DealerOrders() {
   const totalPages = Math.ceil(filtered.length / itemsPerPage) || 1;
   const startIndex = (currentPage - 1) * itemsPerPage;
   const paginatedOrders = filtered.slice(startIndex, startIndex + itemsPerPage);
+
+  const selectedCatalogItem = supplierCatalog.find(
+    (c) => String(c.id) === String(itemForm.catalogItemId)
+  );
+  const orderProfile = selectedCatalogItem
+    ? getOrderProfileFromCatalog(selectedCatalogItem)
+    : null;
 
   const handleBlocksChange = (val, field) => {
     setItemForm(prev => {
@@ -58,81 +85,88 @@ export default function DealerOrders() {
   };
 
   const handleAddItemToList = () => {
-    if (!itemForm.productId || !itemForm.qty || !itemForm.costPrice) return;
-    const prod = businessProducts.find(p => p.id === parseInt(itemForm.productId, 10));
-    if (!prod) return;
+    if (!itemForm.catalogItemId || !itemForm.qty || !itemForm.costPrice) return;
+    const cat = supplierCatalog.find(c => String(c.id) === String(itemForm.catalogItemId));
+    if (!cat) return;
 
-    let unit = 'ta';
-    if (itemForm.size.endsWith('L')) {
-      unit = 'litr';
-    } else if (itemForm.size.endsWith('g')) {
-      unit = 'gr';
-    } else if (itemForm.size.endsWith(' ta')) {
-      unit = 'ta';
-    }
+    const profile = getOrderProfileFromCatalog(cat);
+    const unitMode = itemForm.unitMode || profile.defaultUnit;
+    const unit = unitMode === 'blok' ? 'blok' : (cat.unit || profile.measureUnit || 'dona');
 
     const newItem = {
-      productId: prod.id,
-      name: prod.name,
-      quantity: parseInt(itemForm.qty, 10),
-      blocksCount: itemForm.blocksCount ? parseInt(itemForm.blocksCount, 10) : null,
-      itemsPerBlock: itemForm.itemsPerBlock ? parseInt(itemForm.itemsPerBlock, 10) : null,
-      type: itemForm.type,
-      size: itemForm.size,
-      unit: unit,
-      costPrice: parseFloat(itemForm.costPrice)
+      catalogItemId: cat.id,
+      productId: cat.productId || null,
+      name: cat.name,
+      unitMode,
+      quantity: Math.round(parseFloat(itemForm.qty) || parseInt(itemForm.qty, 10)),
+      blocksCount: unitMode === 'blok' && itemForm.blocksCount ? parseInt(itemForm.blocksCount, 10) : null,
+      itemsPerBlock: unitMode === 'blok' && itemForm.itemsPerBlock ? parseInt(itemForm.itemsPerBlock, 10) : null,
+      type: profile.showType ? (itemForm.type || cat.itemType || 'standart') : itemForm.unitMode,
+      size: profile.showSize ? (itemForm.size || '') : '',
+      unit,
+      costPrice: parseFloat(itemForm.costPrice),
     };
 
     setItemsList(prev => [...prev, newItem]);
-    
-    // Clear item form state
     setItemForm({
-      productId: '',
-      qty: '',
-      blocksCount: '',
-      itemsPerBlock: '',
-      type: '',
-      size: '',
-      costPrice: ''
+      catalogItemId: '', productId: '', name: '', unitMode: 'dona',
+      qty: '', blocksCount: '', itemsPerBlock: '', type: '', size: '', costPrice: '',
     });
+  };
+
+  const handleSave = async () => {
+    if (!selectedSupplierId || itemsList.length === 0) return;
+    const sup = businessSuppliers.find(s => String(s.id) === String(selectedSupplierId));
+    if (!sup) return;
+
+    setSaveError('');
+    const totalVal = itemsList.reduce((sum, item) => sum + item.quantity * item.costPrice, 0);
+    const externalId = `PO-${String(dealerOrders.length + 1).padStart(3, '0')}`;
+    const result = await addPurchaseOrder({
+      externalId,
+      supplierId: sup.id,
+      supplierName: sup.name,
+      date: new Date().toISOString().slice(0, 10),
+      total: totalVal,
+      items: itemsList,
+    });
+
+    if (!result.ok) {
+      setSaveError(result.error);
+      return;
+    }
+
+    setSelectedSupplierId('');
+    setItemsList([]);
+    setOpenAddDialog(false);
+  };
+
+  const handleSaveSupplier = async () => {
+    if (!supplierForm.name.trim() || catalogItems.length === 0) {
+      setSaveError('Diler nomi va kamida bitta mahsulot kerak');
+      return;
+    }
+    setSaveError('');
+    const result = await addSupplier({
+      ...supplierForm,
+      catalog: catalogItems.map((item) => ({
+        name: item.name,
+        category: supplierForm.category,
+        defaultCost: 0,
+        unit: item.unit,
+      })),
+    });
+    if (!result.ok) {
+      setSaveError(result.error);
+      return;
+    }
+    setSupplierForm({ name: '', phone: '', category: '' });
+    setCatalogItems([]);
+    setOpenSupplierDialog(false);
   };
 
   const handleRemoveItem = (index) => {
     setItemsList(prev => prev.filter((_, i) => i !== index));
-  };
-
-  const handleSave = () => {
-    if (!selectedSupplierId || itemsList.length === 0) return;
-    const sup = suppliers.find(s => s.id === parseInt(selectedSupplierId, 10));
-    if (!sup) return;
-
-    const totalVal = itemsList.reduce((sum, item) => sum + item.quantity * item.costPrice, 0);
-    const newOrder = {
-      id: `PO-${String(dealerOrders.length + 1).padStart(3, '0')}`,
-      supplierId: sup.id,
-      supplierName: sup.name,
-      date: new Date().toISOString().slice(0, 10),
-      businessId: currentBusinessId,
-      items: itemsList,
-      total: totalVal,
-      status: 'Kutilmoqda'
-    };
-
-    setDealerOrders(prev => [newOrder, ...prev]);
-    
-    // Reset states
-    setSelectedSupplierId('');
-    setItemsList([]);
-    setItemForm({
-      productId: '',
-      qty: '',
-      blocksCount: '',
-      itemsPerBlock: '',
-      type: '',
-      size: '',
-      costPrice: ''
-    });
-    setOpenAddDialog(false);
   };
 
   const handlePrint = (order) => {
@@ -242,14 +276,24 @@ export default function DealerOrders() {
           <h1 className="text-xl font-bold text-gray-800">Dilerlar - Zakaz (Buyurtmalar)</h1>
           <p className="text-sm text-gray-500">{businessOrders.length} ta dilerlar buyurtmasi</p>
         </div>
-        <Button
-          variant="contained"
-          startIcon={<Add />}
-          onClick={() => setOpenAddDialog(true)}
-          sx={{ bgcolor: '#4361ee', borderRadius: 2, textTransform: 'none', fontWeight: 600, '&:hover': { bgcolor: '#3451d1' } }}
-        >
-          Yangi buyurtma (Zakaz)
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            variant="outlined"
+            startIcon={<Add />}
+            onClick={() => { setSaveError(''); setOpenSupplierDialog(true); }}
+            sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 600 }}
+          >
+            Yangi diler
+          </Button>
+          <Button
+            variant="contained"
+            startIcon={<Add />}
+            onClick={() => { setSaveError(''); setOpenAddDialog(true); }}
+            sx={{ bgcolor: '#4361ee', borderRadius: 2, textTransform: 'none', fontWeight: 600, '&:hover': { bgcolor: '#3451d1' } }}
+          >
+            Yangi buyurtma (Zakaz)
+          </Button>
+        </div>
       </div>
 
       {/* Filter and Search */}
@@ -323,35 +367,12 @@ export default function DealerOrders() {
           </Table>
         </TableContainer>
 
-        {/* Pagination Controls */}
-        <div className="p-3 border-t border-gray-100 flex items-center justify-between bg-gray-50">
-          <span className="text-xs text-gray-500">
-            Jami {filtered.length} tadan {startIndex + 1}-{Math.min(startIndex + itemsPerPage, filtered.length)} ko'rsatilmoqda
-          </span>
-          <div className="flex items-center gap-2">
-            <Button
-              size="small"
-              disabled={currentPage === 1}
-              onClick={() => setCurrentPage(p => p - 1)}
-              startIcon={<ArrowBack />}
-              sx={{ textTransform: 'none', fontSize: 12 }}
-            >
-              Oldingi
-            </Button>
-            <span className="text-xs font-semibold px-2 py-1 bg-white border rounded">
-              {currentPage} / {totalPages}
-            </span>
-            <Button
-              size="small"
-              disabled={currentPage === totalPages}
-              onClick={() => setCurrentPage(p => p + 1)}
-              endIcon={<ArrowForward />}
-              sx={{ textTransform: 'none', fontSize: 12 }}
-            >
-              Keyingi
-            </Button>
-          </div>
-        </div>
+        <PagePagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={setCurrentPage}
+          info={`Jami ${filtered.length} ta · ${startIndex + 1}–${Math.min(startIndex + itemsPerPage, filtered.length)}`}
+        />
       </div>
 
       {/* View Items Dialog */}
@@ -421,9 +442,8 @@ export default function DealerOrders() {
         <DialogTitle sx={{ fontWeight: 700, fontSize: 18, borderBottom: '1px solid #f1f5f9', pb: 2 }}>
           Yangi Buyurtma Yaratish (Zakaz)
         </DialogTitle>
-        <DialogContent sx={{ pt: 3, display: 'flex', flexDirection: 'column', gap: 2.5 }}>
-          {/* Supplier Selector */}
-          <FormControl fullWidth size="small" sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5 } }}>
+        <DialogContent sx={{ pt: 3, display: 'flex', flexDirection: 'column', gap: 3 }}>
+          <FormControl fullWidth size="small" sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}>
             <InputLabel id="supplier-select-label">Diler (Yetkazib beruvchi)</InputLabel>
             <Select
               labelId="supplier-select-label"
@@ -439,74 +459,108 @@ export default function DealerOrders() {
           </FormControl>
 
           {selectedSupplierId && (
-            <div className="border border-blue-100 bg-blue-50/50 p-4 rounded-xl space-y-3">
-              <p className="text-xs font-bold text-blue-800 uppercase tracking-wider">Mahsulot qo'shish</p>
+            <div className="border border-blue-100 bg-blue-50/50 p-5 rounded-xl space-y-4">
+              <p className="text-xs font-bold text-blue-800 uppercase tracking-wider">Mahsulot qo&apos;shish</p>
               
               {/* Product Autocomplete */}
               <Autocomplete
                 size="small"
-                options={businessProducts}
-                getOptionLabel={(option) => option.name || ''}
-                value={businessProducts.find(p => p.id === parseInt(itemForm.productId, 10)) || null}
+                options={supplierCatalog}
+                getOptionLabel={(option) => {
+                  const u = MEASURE_LABELS[option.unit] || option.unit;
+                  return option.name ? `${option.name} (${u})` : '';
+                }}
+                value={supplierCatalog.find(c => String(c.id) === String(itemForm.catalogItemId)) || null}
                 onChange={(event, newValue) => {
                   if (newValue) {
-                    const pId = newValue.id;
-                    const config = getProductConfig(pId);
+                    const profile = getOrderProfileFromCatalog(newValue);
+                    const config = getProductConfig(newValue.productId || 0);
                     setItemForm(prev => ({
                       ...prev,
-                      productId: String(pId),
-                      type: config.types[0]?.value || '',
-                      size: config.sizes[0] || '',
-                      costPrice: String(newValue.cost || '')
+                      catalogItemId: String(newValue.id),
+                      productId: newValue.productId ? String(newValue.productId) : '',
+                      name: newValue.name,
+                      unitMode: profile.defaultUnit,
+                      type: profile.showType ? (newValue.itemType || profile.types[0]?.value || 'standart') : '',
+                      size: profile.showSize ? (newValue.size || profile.sizes[0] || config.sizes[0] || '') : '',
+                      costPrice: String(newValue.defaultCost || ''),
+                      blocksCount: '',
+                      itemsPerBlock: '',
+                      qty: '',
                     }));
                   } else {
                     setItemForm(prev => ({
-                      ...prev,
-                      productId: '',
-                      type: '',
-                      size: '',
-                      costPrice: ''
+                      ...prev, catalogItemId: '', productId: '', name: '', unitMode: 'dona',
+                      type: '', size: '', costPrice: '', qty: '', blocksCount: '', itemsPerBlock: '',
                     }));
                   }
                 }}
-                renderInput={(params) => <TextField {...params} label="Mahsulot qidirish..." />}
+                renderInput={(params) => <TextField {...params} label="Diler mahsulotlari..." />}
                 sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5 }, bgcolor: 'white' }}
+                noOptionsText="Bu dilerda mahsulot yo'q — avval diler qo'shing"
               />
 
-              {itemForm.productId && (
-                <>
-                  {/* Blocks Multipliers (Optional) */}
-                  <div className="grid grid-cols-2 gap-3">
-                    <TextField
-                      label="Blok soni"
-                      type="number"
-                      value={itemForm.blocksCount}
-                      onChange={(e) => handleBlocksChange(e.target.value, 'blocksCount')}
-                      size="small"
-                      fullWidth
-                      sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5 }, bgcolor: 'white' }}
-                    />
-                    <TextField
-                      label="Blokdagi dona soni"
-                      type="number"
-                      value={itemForm.itemsPerBlock}
-                      onChange={(e) => handleBlocksChange(e.target.value, 'itemsPerBlock')}
-                      size="small"
-                      fullWidth
-                      sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5 }, bgcolor: 'white' }}
-                    />
-                  </div>
+              {itemForm.catalogItemId && orderProfile && (
+                <div className="flex flex-col gap-4">
+                  <p className="text-xs text-blue-700 bg-white rounded-lg px-3 py-2.5 border border-blue-100">
+                    Saqlangan o'lchov: <b>{MEASURE_LABELS[selectedCatalogItem?.unit] || selectedCatalogItem?.unit}</b>
+                  </p>
 
-                  <div className="grid grid-cols-2 gap-3">
+                  {orderProfile.units.length > 1 && (
+                    <FormControl fullWidth size="small" sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5, bgcolor: 'white' } }}>
+                      <InputLabel>O'lchov birligi</InputLabel>
+                      <Select
+                        label="O'lchov birligi"
+                        value={itemForm.unitMode}
+                        onChange={(e) => setItemForm(prev => ({
+                          ...prev,
+                          unitMode: e.target.value,
+                          blocksCount: '',
+                          itemsPerBlock: '',
+                          qty: '',
+                        }))}
+                      >
+                        {MEASURE_UNITS.filter((u) => orderProfile.units.includes(u.value)).map((u) => (
+                          <MenuItem key={u.value} value={u.value}>{u.label}</MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+                  )}
+
+                  {itemForm.unitMode === 'blok' && orderProfile.showBlockFields && (
+                    <div className="grid grid-cols-2 gap-4">
+                      <TextField
+                        label="Blok soni"
+                        type="number"
+                        value={itemForm.blocksCount}
+                        onChange={(e) => handleBlocksChange(e.target.value, 'blocksCount')}
+                        size="small"
+                        fullWidth
+                        sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5, bgcolor: 'white' } }}
+                      />
+                      <TextField
+                        label="Blokdagi dona soni"
+                        type="number"
+                        value={itemForm.itemsPerBlock}
+                        onChange={(e) => handleBlocksChange(e.target.value, 'itemsPerBlock')}
+                        size="small"
+                        fullWidth
+                        sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5, bgcolor: 'white' } }}
+                      />
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <TextField
-                      label="Jami dona (Soni)"
+                      label={orderProfile.qtyLabel?.[itemForm.unitMode] || 'Miqdor'}
                       type="number"
                       value={itemForm.qty}
                       onChange={(e) => setItemForm(prev => ({ ...prev, qty: e.target.value }))}
                       size="small"
                       fullWidth
                       required
-                      sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5 }, bgcolor: 'white' }}
+                      disabled={itemForm.unitMode === 'blok' && orderProfile.showBlockFields && itemForm.blocksCount && itemForm.itemsPerBlock}
+                      sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5, bgcolor: 'white' } }}
                     />
                     <TextField
                       label="Tannarx (Kirim narxi)"
@@ -516,46 +570,42 @@ export default function DealerOrders() {
                       size="small"
                       fullWidth
                       required
-                      sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5 }, bgcolor: 'white' }}
+                      sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5, bgcolor: 'white' } }}
                     />
                   </div>
 
-                  {(() => {
-                    const currentConfig = getProductConfig(parseInt(itemForm.productId, 10));
-                    return (
-                      <div className="grid grid-cols-2 gap-3">
-                        <FormControl fullWidth size="small" sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5 }, bgcolor: 'white' }}>
-                          <InputLabel id="type-select-label">Turi</InputLabel>
+                  {(orderProfile.showType || orderProfile.showSize) && (
+                    <div className={`grid gap-4 ${orderProfile.showType && orderProfile.showSize ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1'}`}>
+                      {orderProfile.showType && (
+                        <FormControl fullWidth size="small" sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5, bgcolor: 'white' } }}>
+                          <InputLabel>Turi</InputLabel>
                           <Select
-                            labelId="type-select-label"
                             label="Turi"
                             value={itemForm.type}
                             onChange={(e) => setItemForm(prev => ({ ...prev, type: e.target.value }))}
-                            MenuProps={{ disablePortal: true }}
                           >
-                            {currentConfig.types.map(t => (
+                            {orderProfile.types.map((t) => (
                               <MenuItem key={t.value} value={t.value}>{t.label}</MenuItem>
                             ))}
                           </Select>
                         </FormControl>
-
-                        <FormControl fullWidth size="small" sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5 }, bgcolor: 'white' }}>
-                          <InputLabel id="size-select-label">Hajmi / O'lchovi</InputLabel>
+                      )}
+                      {orderProfile.showSize && orderProfile.sizes?.length > 0 && (
+                        <FormControl fullWidth size="small" sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5, bgcolor: 'white' } }}>
+                          <InputLabel>{orderProfile.sizeLabel || "O'lchovi"}</InputLabel>
                           <Select
-                            labelId="size-select-label"
-                            label="Hajmi / O'lchovi"
+                            label={orderProfile.sizeLabel || "O'lchovi"}
                             value={itemForm.size}
                             onChange={(e) => setItemForm(prev => ({ ...prev, size: e.target.value }))}
-                            MenuProps={{ disablePortal: true }}
                           >
-                            {currentConfig.sizes.map(sz => (
+                            {orderProfile.sizes.map((sz) => (
                               <MenuItem key={sz} value={sz}>{sz}</MenuItem>
                             ))}
                           </Select>
                         </FormControl>
-                      </div>
-                    );
-                  })()}
+                      )}
+                    </div>
+                  )}
 
                   <div className="flex justify-end mt-1">
                     <Button
@@ -566,7 +616,7 @@ export default function DealerOrders() {
                       Ro'yxatga qo'shish
                     </Button>
                   </div>
-                </>
+                </div>
               )}
             </div>
           )}
@@ -598,7 +648,7 @@ export default function DealerOrders() {
                           </div>
                         </TableCell>
                         <TableCell sx={{ fontSize: 11, py: 0.75 }} align="center">
-                          {item.blocksCount ? `${item.blocksCount} blk x ${item.itemsPerBlock} ta` : `${item.quantity} ${item.unit}`}
+                          {formatOrderQuantity(item)}
                         </TableCell>
                         <TableCell sx={{ fontSize: 11, py: 0.75 }} align="right">{fmt(item.costPrice)}</TableCell>
                         <TableCell sx={{ fontSize: 11, py: 0.75, fontWeight: 600 }} align="right">{fmt(item.quantity * item.costPrice)}</TableCell>
@@ -638,6 +688,59 @@ export default function DealerOrders() {
           >
             Zakaz Berish
           </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Yangi Diler Dialog */}
+      <Dialog open={openSupplierDialog} onClose={() => setOpenSupplierDialog(false)} maxWidth="sm" fullWidth>
+        <DialogTitle sx={{ fontWeight: 700, fontSize: 18 }}>Yangi Diler Qo'shish</DialogTitle>
+        <DialogContent sx={{ pt: 2, display: 'flex', flexDirection: 'column', gap: 3 }}>
+          {saveError && <p className="text-red-600 text-sm">{saveError}</p>}
+          <TextField label="Diler nomi" size="small" fullWidth value={supplierForm.name}
+            onChange={(e) => setSupplierForm(f => ({ ...f, name: e.target.value }))}
+            sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }} />
+          <TextField label="Telefon" size="small" fullWidth value={supplierForm.phone}
+            onChange={(e) => setSupplierForm(f => ({ ...f, phone: e.target.value }))}
+            sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }} />
+          <TextField label="Kategoriya" size="small" fullWidth value={supplierForm.category}
+            onChange={(e) => setSupplierForm(f => ({ ...f, category: e.target.value }))}
+            sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }} />
+          <div className="border rounded-xl p-4 space-y-3">
+            <p className="text-xs font-bold text-gray-600">Mahsulotlar (nom va o'lchov birligi)</p>
+            <div className="flex gap-3 flex-wrap items-start">
+              <TextField size="small" sx={{ flex: 1, minWidth: 160, '& .MuiOutlinedInput-root': { borderRadius: 2 } }} placeholder="Masalan: Cola 1L" value={newCatalogName}
+                onChange={(e) => setNewCatalogName(e.target.value)} />
+              <FormControl size="small" sx={{ minWidth: 160 }}>
+                <InputLabel>O'lchov</InputLabel>
+                <Select label="O'lchov" value={newCatalogUnit}
+                  onChange={(e) => setNewCatalogUnit(e.target.value)}>
+                  {MEASURE_UNITS.map((u) => (
+                    <MenuItem key={u.value} value={u.value}>{u.label}</MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+              <Button variant="outlined" size="small" onClick={() => {
+                if (!newCatalogName.trim()) return;
+                setCatalogItems(prev => [...prev, { name: newCatalogName.trim(), unit: newCatalogUnit }]);
+                setNewCatalogName('');
+              }}>Qo'shish</Button>
+            </div>
+            <div className="flex flex-wrap gap-1">
+              {catalogItems.map((item, i) => (
+                <Chip
+                  key={i}
+                  label={`${item.name} (${MEASURE_LABELS[item.unit] || item.unit})`}
+                  size="small"
+                  onDelete={() => setCatalogItems(prev => prev.filter((_, j) => j !== i))}
+                />
+              ))}
+            </div>
+          </div>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => setOpenSupplierDialog(false)}>Bekor</Button>
+          <Button variant="contained" onClick={handleSaveSupplier} disabled={saving}
+            sx={{ bgcolor: '#4361ee', textTransform: 'none' }}>Saqlash</Button>
         </DialogActions>
       </Dialog>
     </div>
