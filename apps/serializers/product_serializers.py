@@ -1,30 +1,34 @@
 import re
 
 from rest_framework import serializers
+from rest_framework.exceptions import ValidationError
+from rest_framework.fields import UUIDField, SerializerMethodField, DecimalField, CharField
+from rest_framework.relations import SlugRelatedField
+from rest_framework.serializers import ModelSerializer
 
 from apps.models import Branch, Category, Product
 
 
-class CategorySerializer(serializers.ModelSerializer):
+class CategorySerializer(ModelSerializer):
     class Meta:
         model = Category
         fields = ['id', 'name']
 
 
-class ProductSerializer(serializers.ModelSerializer):
-    category = serializers.SlugRelatedField(
+class ProductSerializer(ModelSerializer):
+    category = SlugRelatedField(
         slug_field='name', queryset=Category.objects.all(),
     )
-    category_name = serializers.CharField(source='category.name', read_only=True)
-    price = serializers.DecimalField(
+    category_name = CharField(source='category.name', read_only=True)
+    price = DecimalField(
         source='selling_price', max_digits=12, decimal_places=2, required=False,
     )
-    cost = serializers.DecimalField(
+    cost = DecimalField(
         source='base_price', max_digits=12, decimal_places=2, required=False,
     )
-    profit = serializers.SerializerMethodField()
-    status = serializers.SerializerMethodField()
-    business_id = serializers.UUIDField(source='branch_id', read_only=True, allow_null=True)
+    profit = SerializerMethodField()
+    status = SerializerMethodField()
+    business_id = UUIDField(source='branch_id', read_only=True, allow_null=True)
 
     class Meta:
         model = Product
@@ -43,7 +47,7 @@ class ProductSerializer(serializers.ModelSerializer):
         return obj.status
 
 
-class BranchModelSerializer(serializers.ModelSerializer):
+class BranchModelSerializer(ModelSerializer):
     class Meta:
         model = Branch
         fields = ('id', 'name', 'address', 'phone', 'created_at')
@@ -56,7 +60,7 @@ class BranchModelSerializer(serializers.ModelSerializer):
 
 def validate_phone(self, value):
     if value and not re.match(r'^\+\d{9,15}$', value):
-        raise serializers.ValidationError(
+        raise ValidationError(
             "Telefon raqam noto'g'ri formatda. Masalan: +998901234567"
         )
     return value
