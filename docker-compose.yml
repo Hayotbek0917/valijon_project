@@ -1,0 +1,45 @@
+services:
+  backend_service:
+    build: ./backend/
+    env_file: backend/.env
+    environment:
+      POSTGRES_HOST: postgres_service
+    volumes:
+      - media:/app/media
+    ports:
+      - "8000:8001"
+    depends_on:
+      postgres_service:
+        condition: service_healthy
+
+  frontend_service:
+    build:
+      context: ./frontend/
+      args:
+        VITE_API_URL: http://localhost:8000
+    env_file: frontend/.env
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend_service
+
+  postgres_service:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_PASSWORD: "1"
+      POSTGRES_DB: pos_systemdb
+      POSTGRES_USER: postgres
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d pos_systemdb"]
+      interval: 3s
+      timeout: 5s
+      retries: 15
+
+  redis_service:
+    image: redis:alpine
+
+volumes:
+  media:
+  pgdata:
