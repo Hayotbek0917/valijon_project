@@ -1,0 +1,44 @@
+services:
+  db:
+    image: postgres:alpine
+    environment:
+      POSTGRES_DB: pos_cursor
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d pos_cursor"]
+      interval: 3s
+      timeout: 5s
+      retries: 15
+    ports:
+      - "5433:5432"
+
+  backend:
+    build: ./
+    env_file:
+      - .env.docker
+    environment:
+      POSTGRES_HOST: db
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+    volumes:
+      - media_data:/app/media
+
+  frontend:
+    build:
+      context: ./Pos
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: ""
+    depends_on:
+      - backend
+    ports:
+      - "5173:80"
+
+volumes:
+  pgdata:
+  media_data:
