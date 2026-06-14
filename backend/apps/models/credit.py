@@ -1,16 +1,20 @@
-from django.db.models import (
-    Model, CharField, ForeignKey, DecimalField, DateTimeField, CASCADE, SET_NULL, Q, UniqueConstraint,
+from django.core.validators import RegexValidator
+from django.db.models import ForeignKey, CASCADE, CharField, DecimalField, TextChoices, SET_NULL, Q
+from django.db.models.constraints import UniqueConstraint
+
+from apps.models import BaseModel, CreatedModel
+
+uzbek_phone_validator = RegexValidator(
+    regex=r'^\+998\d{9}$',
+    message="Telefon raqam +998XXXXXXXXX formatida bo'lishi kerak.",
 )
 
-from apps.models.users import Branch
-from apps.models.sale import Sale
 
-
-class CreditAccount(Model):
-    branch = ForeignKey(Branch, on_delete=CASCADE, related_name='credit_accounts')
-    customer_name = CharField(max_length=255)
-    phone = CharField(max_length=20, blank=True)
-    balance = DecimalField(max_digits=14, decimal_places=2, default=0)
+class DebtCustomers(BaseModel):
+    branch = ForeignKey('apps.Branch', CASCADE, related_name='credit_accounts')
+    customer_name = CharField(max_length=255, verbose_name='Mijoz ismi')
+    phone = CharField(max_length=20, blank=True, validators=[uzbek_phone_validator])
+    balance = DecimalField(max_digits=14, decimal_places=2, default=0, verbose_name='Balans')
 
     class Meta:
         ordering = ['customer_name']
@@ -18,32 +22,32 @@ class CreditAccount(Model):
             UniqueConstraint(
                 fields=['branch', 'phone'],
                 condition=Q(phone__gt=''),
-                name='unique_branch_phone_when_set',
+                name='unique_credit_branch_phone_when_set',
             ),
         ]
 
     def __str__(self):
-        return f'{self.customer_name} ({self.balance})'
+        return f'{self.customer_name} ({self.balance:,} so\'m)'
+
+    @property
+    def is_in_debt(self):
+        return self.balance > 0
 
 
-class CreditTransaction(Model):
-    KIND_CHARGE = 'charge'
-    KIND_PAYMENT = 'payment'
-    KIND_CHOICES = [
-        (KIND_CHARGE, 'Qarz'),
-        (KIND_PAYMENT, "To'lov"),
-    ]
+class CreditTransaction(CreatedModel):
+    class Kind(TextChoices):
+        CHARGE = 'charge', 'Qarz'
+        PAYMENT = 'payment', "To'lov"
 
-    account = ForeignKey(CreditAccount, on_delete=CASCADE, related_name='transactions')
-    kind = CharField(max_length=20, choices=KIND_CHOICES)
-    amount = DecimalField(max_digits=14, decimal_places=2)
-    note = CharField(max_length=500, blank=True)
-    sale = ForeignKey(Sale, on_delete=SET_NULL, null=True, blank=True, related_name='credit_transactions')
+    account = ForeignKey('apps.DebtCustomers', CASCADE, related_name='transactions', verbose_name='Hisob')
+    kind = CharField(max_length=20, choices=Kind.choices, verbose_name='Turi',)
+    amount = DecimalField(max_digits=14, decimal_places=2, verbose_name='Summa')
+    note = CharField(max_length=500, blank=True, default='', verbose_name='Izoh')
+    sale = ForeignKey('apps.Sale', SET_NULL, null=True, blank=True, related_name='credit_transactions', verbose_name='Sotuv')
     cashier_name = CharField(max_length=255, blank=True)
-    created_at = DateTimeField(auto_now_add=True)
 
     class Meta:
         ordering = ['-created_at']
 
     def __str__(self):
-        return f'{self.account.customer_name} {self.kind} {self.amount}'
+        return f'{self.account.customer_name} | {self.get_kind_display()} | {self.amount:,}'
