@@ -1,95 +1,73 @@
 import re
 
-from django.contrib.auth import authenticate
-from django.contrib.auth.password_validation import validate_password
+from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
-from rest_framework.fields import CharField
-from rest_framework.serializers import ModelSerializer, Serializer
-
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError as DjangoValidationError
+from django.contrib.auth import authenticate
 from apps.models import User
-
-PHONE_REGEX = r'^\+998\d{9}$'
-
-
-def validate_uzbek_phone(value: str):
-    if not re.match(PHONE_REGEX, value):
-        raise ValidationError("Telefon format noto‘g‘ri. Masalan: +998901234567")
-
-    return value
+from apps.utils import normalize_phone
 
 
-class RegisterModelSerializer(ModelSerializer):
-    password = CharField(write_only=True)
-    confirm_password = CharField(write_only=True)
+def validate_uzbek_phone(value):
+    normalized = normalize_phone(value)
+    if not re.match(r"^\d{9}$", normalized):
+        raise ValidationError("Telefon raqam 901234567 formatida bo'lishi kerak.")
+    return normalized
+
+
+class RegisterModelSerializer(serializers.ModelSerializer):
+    password = serializers.CharField(write_only=True)
+    confirm_password = serializers.CharField(write_only=True)
 
     class Meta:
         model = User
         fields = (
-            'id', 'username', 'phone', 'email', 'first_name', 'last_name',
-            'role', 'branch', 'password', 'confirm_password',
+            "phone",
+            "first_name",
+            "last_name",
+            "password",
+            "confirm_password",
+            "email",
         )
-        extra_kwargs = {
-            'id': {'read_only': True},
-            'password': {'write_only': True}
-        }
-
-    def validate_username(self, value):
-        value = value.strip().lower()
-        if User.objects.filter(username=value).exists():
-            raise ValidationError("Bu login band")
-        return value
 
     def validate_phone(self, value):
-        validate_uzbek_phone(value)
-        if User.objects.filter(phone=value).exists():
-            raise ValidationError("Bu telefon raqam allaqachon mavjud")
-        return value
-
-    def validate_password(self, value):
-        validate_password(value)
-        return value
+        normalized = validate_uzbek_phone(value)
+        if User.objects.filter(phone=normalized).exists():
+            raise ValidationError("Bu raqam allaqachon ro'yxatdan o'tgan.")
+        return normalized
 
     def validate(self, attrs):
-        password = attrs.get('password')
-        confirm_password = attrs.get('confirm_password')
-        if password != confirm_password:
-            raise ValidationError({'confirm_password': "Parollar mos emas"})
+        if attrs.get("password") != attrs.get("confirm_password"):
+            raise ValidationError({"confirm_password": "Parollar mos emas."})
+
+        try:
+            validate_password(attrs["password"])
+        except DjangoValidationError as e:
+            raise ValidationError({"password": list(e.messages)})
         return attrs
 
     def create(self, validated_data):
-        validated_data.pop('confirm_password', None)
+        validated_data.pop("confirm_password")
         return User.objects.create_user(**validated_data)
 
 
-class LoginModelSerializer(Serializer):
-    username = CharField(required=False)
-    phone = CharField(required=False)
-    password = CharField(write_only=True)
+class LoginModelSerializer(serializers.Serializer):
+    phone = serializers.CharField()
+    password = serializers.CharField(write_only=True)
 
     def validate(self, attrs):
-        password = attrs.get('password')
-        login_id = attrs.get('username') or attrs.get('phone')
-        if not login_id:
-            raise ValidationError("Login (username yoki telefon) kiritilishi shart")
+        normalized = normalize_phone(attrs.get("phone", ""))
+        password = attrs.get("password")
 
         user = authenticate(
-            request=self.context.get('request'),
-            username=login_id,
-            password=password,
+            request=self.context.get("request"), username=normalized, password=password
         )
-        if not user and attrs.get('phone'):
-            user = authenticate(
-                request=self.context.get('request'),
-                username=attrs['phone'],
-                password=password,
-            )
 
         if not user:
-            raise ValidationError("Login yoki parol xato")
-
+            raise ValidationError("Telefon raqam yoki parol xato.")
         if not user.is_active:
-            raise ValidationError("Foydalanuvchi aktiv emas")
-        attrs['user'] = user
+            raise ValidationError("Foydalanuvchi faol emas.")
+
+        attrs["user"] = user
         return attrs
-
-
