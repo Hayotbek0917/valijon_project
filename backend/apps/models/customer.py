@@ -1,12 +1,6 @@
-from django.core.validators import RegexValidator
 from django.db.models import ForeignKey, CASCADE, CharField
 
-from apps.models import BaseModel
-
-uzbek_phone_validator = RegexValidator(
-    regex=r'^\+998\d{9}$',
-    message="Telefon raqam +998XXXXXXXXX formatida bo'lishi kerak.",
-)
+from apps.models import BaseModel, uzbek_phone_validator
 
 
 class Customer(BaseModel):

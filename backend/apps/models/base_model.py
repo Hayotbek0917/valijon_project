@@ -1,5 +1,15 @@
 import uuid
+
+from django.core.validators import RegexValidator
 from django.db.models import Model, UUIDField, DateTimeField
+
+
+
+
+uzbek_phone_validator = RegexValidator(
+    regex=r'^\+998\d{9}$',
+    message="Telefon raqam +998XXXXXXXXX formatida bo'lishi kerak.",
+)
 
 class BaseModel(Model):
     id = UUIDField(primary_key=True, default=uuid.uuid4, editable=False)

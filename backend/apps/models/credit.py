@@ -2,15 +2,10 @@ from django.core.validators import RegexValidator
 from django.db.models import ForeignKey, CASCADE, CharField, DecimalField, TextChoices, SET_NULL, Q
 from django.db.models.constraints import UniqueConstraint
 
-from apps.models import BaseModel, CreatedModel
-
-uzbek_phone_validator = RegexValidator(
-    regex=r'^\+998\d{9}$',
-    message="Telefon raqam +998XXXXXXXXX formatida bo'lishi kerak.",
-)
+from apps.models import BaseModel, CreatedModel, uzbek_phone_validator
 
 
-class CreditAccount(BaseModel):
+class DebtCustomers(BaseModel):
     branch = ForeignKey('apps.Branch', CASCADE, related_name='credit_accounts')
     customer_name = CharField(max_length=255, verbose_name='Mijoz ismi')
     phone = CharField(max_length=20, blank=True, validators=[uzbek_phone_validator])
@@ -39,7 +34,7 @@ class CreditTransaction(CreatedModel):
         CHARGE = 'charge', 'Qarz'
         PAYMENT = 'payment', "To'lov"
 
-    account = ForeignKey('apps.CreditAccount', CASCADE, related_name='transactions', verbose_name='Hisob')
+    account = ForeignKey('apps.DebtCustomers', CASCADE, related_name='transactions', verbose_name='Hisob')
     kind = CharField(max_length=20, choices=Kind.choices, verbose_name='Turi',)
     amount = DecimalField(max_digits=14, decimal_places=2, verbose_name='Summa')
     note = CharField(max_length=500, blank=True, default='', verbose_name='Izoh')

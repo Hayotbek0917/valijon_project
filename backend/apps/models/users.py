@@ -1,18 +1,19 @@
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
 from django.core.exceptions import ValidationError
-from django.core.validators import RegexValidator
-from django.db.models import UUIDField, TextChoices, CharField, DateTimeField, ImageField, ForeignKey, SET_NULL, \
-    BooleanField
+from django.db.models import (
+    UUIDField,
+    TextChoices,
+    CharField,
+    DateTimeField,
+    ImageField,
+    ForeignKey,
+    SET_NULL,
+    BooleanField,
+    EmailField,
+)
 import uuid
 
-from apps.models import CreatedModel
-
-uzbek_phone_validator = RegexValidator(
-    regex=r'^\+998\d{9}$',
-    message="Telefon raqam +998XXXXXXXXX formatida bo'lishi kerak.",
-)
-
-
+from apps.models import CreatedModel, uzbek_phone_validator
 
 
 class Branch(CreatedModel):
@@ -22,8 +23,6 @@ class Branch(CreatedModel):
     created_at = DateTimeField(auto_now_add=True, verbose_name='Yaratilgan vaqt')
 
     class Meta:
-        verbose_name = 'Filial'
-        verbose_name_plural = 'Filiallar'
         ordering = ['name']
 
     def __str__(self):
@@ -62,7 +61,7 @@ class User(AbstractBaseUser, PermissionsMixin):
         CASHIER = 'cashier', 'Kassir'
 
     id = UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-
+    email = EmailField(max_length=255, blank=True, null=True, unique=True)
     phone = CharField(max_length=20, unique=True, validators=[uzbek_phone_validator])
     first_name = CharField(max_length=100)
     last_name = CharField(max_length=100)

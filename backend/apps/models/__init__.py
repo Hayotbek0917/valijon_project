@@ -1,4 +1,5 @@
-from .base_model import TimeStampedModel, BaseModel,CreatedModel
+from .base_model import TimeStampedModel, BaseModel, CreatedModel, uzbek_phone_validator
+from .credit import DebtCustomers, CreditTransaction
 
 from .users import User, Branch
 from .product import Category, Product
@@ -7,4 +8,3 @@ from .inventory import Warehouse, InventoryItem
 from .sale import Sale, SaleLine, PosCartDraft
 from .purchase import PurchaseOrder, PurchaseOrderLine
 from .customer import Customer
-from .credit import CreditAccount, CreditTransaction
