@@ -111,7 +111,7 @@ class SupplierViewSet(ModelViewSet):
             data['category'] = supplier.category
         serializer = SupplierCatalogItemSerializer(data=data)
         serializer.is_valid(raise_exception=True)
-        item = serializer.save(supplier=supplier)
+        serializer.save(supplier=supplier)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 

@@ -1,18 +1,10 @@
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
 from django.core.exceptions import ValidationError
-from django.core.validators import RegexValidator
 from django.db.models import UUIDField, TextChoices, CharField, DateTimeField, ImageField, ForeignKey, SET_NULL, \
     BooleanField
 import uuid
 
-from apps.models import CreatedModel
-
-uzbek_phone_validator = RegexValidator(
-    regex=r'^\+998\d{9}$',
-    message="Telefon raqam +998XXXXXXXXX formatida bo'lishi kerak.",
-)
-
-
+from apps.models import CreatedModel, uzbek_phone_validator
 
 
 class Branch(CreatedModel):
