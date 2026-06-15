@@ -28,10 +28,11 @@ from apps.models import (
     User,
     DebtCustomers,
     CreditTransaction,
+    Branch,
 )
 from services import create_sale_with_stock, record_credit_charge
 
-from models import Branch
+
 
 
 class SupplierCatalogItemSerializer(ModelSerializer):
