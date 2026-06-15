@@ -30,7 +30,7 @@ from apps.models import (
     CreditTransaction,
     Branch,
 )
-from services import create_sale_with_stock, record_credit_charge
+from apps.services import create_sale_with_stock, record_credit_charge
 
 
 

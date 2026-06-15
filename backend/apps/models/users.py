@@ -69,6 +69,7 @@ class User(AbstractBaseUser, PermissionsMixin):
         CASHIER = "cashier", "Kassir"
 
     id = UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    username = CharField(max_length=255, verbose_name="Foydalanuvchining nomi")
     email = EmailField(max_length=255, blank=True, null=True, unique=True)
     phone = CharField(max_length=20, unique=True, validators=[uzbek_phone_validator])
     first_name = CharField(max_length=100)

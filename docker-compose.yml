@@ -29,6 +29,8 @@ services:
       POSTGRES_PASSWORD: "1"
       POSTGRES_DB: pos_systemdb
       POSTGRES_USER: postgres
+    ports:
+      - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
