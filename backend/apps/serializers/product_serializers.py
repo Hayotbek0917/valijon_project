@@ -1,5 +1,6 @@
-from rest_framework import serializers
+import re
 
+from rest_framework import serializers
 from apps.models import Branch, Category, Product
 
 
@@ -21,7 +22,8 @@ class ProductSerializer(serializers.ModelSerializer):
         source='base_price', max_digits=12, decimal_places=2, required=False,
     )
     profit = serializers.SerializerMethodField()
-    status = serializers.SerializerMethodField()
+    status_display = serializers.CharField(source='get_status_display', read_only=True)
+    is_draft = serializers.SerializerMethodField()
     business_id = serializers.UUIDField(source='branch_id', read_only=True, allow_null=True)
     image_url = serializers.SerializerMethodField()
 
@@ -30,10 +32,11 @@ class ProductSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'name', 'barcode', 'category', 'category_name',
             'branch', 'business_id', 'selling_price', 'base_price', 'price', 'cost',
-            'emoji', 'image', 'image_url', 'is_draft', 'profit', 'stock', 'status',
+            'emoji', 'image', 'image_url', 'is_draft', 'profit', 'stock',
+            'status', 'status_display',
             'created_at', 'updated_at',
         ]
-        read_only_fields = ('created_at', 'updated_at', 'image', 'image_url')
+        read_only_fields = ('created_at', 'updated_at', 'image')
 
     def get_image_url(self, obj):
         if not obj.image:
@@ -46,8 +49,8 @@ class ProductSerializer(serializers.ModelSerializer):
     def get_profit(self, obj):
         return obj.profit
 
-    def get_status(self, obj):
-        return obj.status
+    def get_is_draft(self, obj):
+        return obj.status == Product.Status.DRAFT
 
 
 class BranchModelSerializer(serializers.ModelSerializer):
@@ -60,6 +63,8 @@ class BranchModelSerializer(serializers.ModelSerializer):
         }
 
     def validate_phone(self, value):
-        if value and not value.startswith('+'):
-            raise serializers.ValidationError("Telefon raqam xalqaro formatda bo'lishi shart (Masalan: +998...)")
+        if value and not re.fullmatch(r'\d{9}', value):
+            raise serializers.ValidationError(
+                "Telefon raqam 901234567 formatida bo'lishi kerak (9 ta raqam, '+' va boshqa belgilarsiz)."
+            )
         return value
