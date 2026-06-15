@@ -3,7 +3,7 @@ from decimal import Decimal
 from django.db import transaction
 from rest_framework.exceptions import ValidationError
 
-from apps.models import CreditAccount, CreditTransaction
+from apps.models import DebtCustomers, CreditTransaction
 
 
 def _normalize_phone(phone):
@@ -15,7 +15,7 @@ def _find_by_phone(branch, phone):
     norm = _normalize_phone(phone)
     if not norm:
         return None
-    for account in CreditAccount.objects.filter(branch=branch):
+    for account in DebtCustomers.objects.filter(branch=branch):
         if _normalize_phone(account.phone) == norm:
             return account
     return None
@@ -31,8 +31,8 @@ def resolve_credit_account(
 ):
     if account_id:
         try:
-            return CreditAccount.objects.get(pk=account_id, branch=branch)
-        except CreditAccount.DoesNotExist as exc:
+            return DebtCustomers.objects.get(pk=account_id, branch=branch)
+        except DebtCustomers.DoesNotExist as exc:
             raise ValidationError({'credit_account_id': 'Qarz hisobi topilmadi'}) from exc
 
     name = (customer_name or '').strip()
@@ -40,7 +40,7 @@ def resolve_credit_account(
         raise ValidationError({'customer_name': 'Mijoz ismi kerak'})
 
     if force_new:
-        return CreditAccount.objects.create(
+        return DebtCustomers.objects.create(
             branch=branch,
             customer_name=name,
             phone=(phone or '').strip(),
@@ -48,13 +48,13 @@ def resolve_credit_account(
         )
 
     phone_text = (phone or '').strip()
-    matches_by_name = CreditAccount.objects.filter(branch=branch, customer_name__iexact=name)
+    matches_by_name = DebtCustomers.objects.filter(branch=branch, customer_name__iexact=name)
 
     if phone_text:
         existing = _find_by_phone(branch, phone_text)
         if existing:
             return existing
-        return CreditAccount.objects.create(
+        return DebtCustomers.objects.create(
             branch=branch,
             customer_name=name,
             phone=phone_text,
@@ -63,7 +63,7 @@ def resolve_credit_account(
 
     count = matches_by_name.count()
     if count == 0:
-        return CreditAccount.objects.create(
+        return DebtCustomers.objects.create(
             branch=branch,
             customer_name=name,
             phone='',

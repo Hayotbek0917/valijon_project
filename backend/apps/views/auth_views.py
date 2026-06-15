@@ -13,7 +13,7 @@ class RegisterView(APIView):
     def post(self, request):
         serializer = RegisterModelSerializer(data=request.data)
         if serializer.is_valid():
-            user = serializer.save()
+            serializer.save()
             return Response(
                 {"message": "Ro'yxatdan o'tdingiz!"}, status=status.HTTP_201_CREATED
             )

@@ -30,22 +30,19 @@ class Sale(CreatedModel):
 
 
 class SaleLine(TimeStampedModel):
+    """ 'Sotuv satri'"""
     sale = ForeignKey('apps.Sale', CASCADE, related_name='lines', verbose_name='Sotuv', )
     product_name = CharField(max_length=255)
     quantity = PositiveIntegerField(verbose_name='Miqdor')
     unit_price = DecimalField(max_digits=12, decimal_places=2, verbose_name='Narx')
 
-    class Meta:
-        verbose_name = 'Sotuv satri'
-        verbose_name_plural = 'Sotuv satrlari'
 
     def __str__(self):
         return f'{self.product_name} x{self.quantity}'
 
 
-class PosCartDraft(BaseModel):
-    """Kassada navbat: mijoz ketganda savat vaqtincha saqlanadi."""
-
+class PosCartDraft(TimeStampedModel):
+    """ Savdo qoralamasi """
     branch = ForeignKey('apps.Branch', CASCADE, related_name='pos_cart_drafts', verbose_name='Filial', )
     cashier = ForeignKey('apps.User', CASCADE, related_name='pos_cart_drafts', verbose_name='Kassir', )
     label = CharField(max_length=120, verbose_name='Nom')

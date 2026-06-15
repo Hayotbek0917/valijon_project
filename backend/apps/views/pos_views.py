@@ -11,14 +11,14 @@ from rest_framework.viewsets import ModelViewSet
 from apps.models import (
     Category, Product, Supplier, SupplierCatalogItem, Warehouse, InventoryItem,
     Sale, PosCartDraft, PurchaseOrder, Customer, Agent, AgentOrder, User,
-    CreditAccount,
+    DebtCustomers,
 )
 from apps.serializers.pos_serializers import (
     SupplierSerializer, SupplierCatalogItemSerializer, WarehouseSerializer, InventoryItemSerializer,
     SaleSerializer, PosCartDraftSerializer, PurchaseOrderSerializer, PurchaseReceiveSerializer,
     CustomerSerializer, AgentSerializer, AgentOrderSerializer,
     UserStaffSerializer, StaffCreateSerializer,
-    CreditAccountSerializer, CreditPaymentSerializer,
+    DebtCustomersSerializer, CreditPaymentSerializer,
 )
 from apps.serializers.product_serializers import CategorySerializer, ProductSerializer
 from apps.services.purchase import receive_purchase_order
@@ -224,15 +224,15 @@ class AgentOrderViewSet(ModelViewSet):
 
 
 @extend_schema(tags=['Credit'])
-class CreditAccountViewSet(ModelViewSet):
-    queryset = CreditAccount.objects.select_related('branch').prefetch_related('transactions').all()
-    serializer_class = CreditAccountSerializer
+class DebtCustomersViewSet(ModelViewSet):
+    queryset = DebtCustomers.objects.select_related('branch').prefetch_related('transactions').all()
+    serializer_class = DebtCustomersSerializer
     permission_classes = [IsAuthenticated]
     filterset_fields = ['branch']
     search_fields = ['customer_name', 'phone']
     http_method_names = ['get', 'head', 'options', 'post']
 
-    @extend_schema(request=CreditPaymentSerializer, responses=CreditAccountSerializer)
+    @extend_schema(request=CreditPaymentSerializer, responses=DebtCustomersSerializer)
     @action(detail=True, methods=['post'], url_path='pay')
     def pay(self, request, pk=None):
         account = self.get_object()
@@ -246,7 +246,7 @@ class CreditAccountViewSet(ModelViewSet):
             note=serializer.validated_data.get('note', ''),
         )
         account.refresh_from_db()
-        return Response(CreditAccountSerializer(account).data)
+        return Response(DebtCustomersSerializer(account).data)
 
 
 @extend_schema(tags=['Staff'])

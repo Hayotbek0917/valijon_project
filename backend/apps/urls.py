@@ -15,7 +15,7 @@ from .views import (
     CustomerViewSet,
     AgentViewSet,
     AgentOrderViewSet,
-    CreditAccountViewSet,
+    DebtCustomersViewSet,
     UserStaffViewSet,
     StaffCreateAPIView,
     RegisterView,
@@ -35,7 +35,7 @@ router.register("purchase-orders", PurchaseOrderViewSet, basename="purchase-orde
 router.register("customers", CustomerViewSet, basename="customer")
 router.register("agents", AgentViewSet, basename="agent")
 router.register("agent-orders", AgentOrderViewSet, basename="agent-order")
-router.register("credit-accounts", CreditAccountViewSet, basename="credit-account")
+router.register("credit-accounts", DebtCustomersViewSet, basename="credit-account")
 router.register("users", UserStaffViewSet, basename="staff-user")
 
 urlpatterns = [

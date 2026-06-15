@@ -11,7 +11,7 @@ from apps.views.pos_views import (
     CustomerViewSet,
     AgentViewSet,
     AgentOrderViewSet,
-    CreditAccountViewSet,
+    DebtCustomersViewSet,
     UserStaffViewSet,
     StaffCreateAPIView,
 )

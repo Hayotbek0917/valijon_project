@@ -1,4 +1,16 @@
-from rest_framework import serializers
+import random
+
+from rest_framework.serializers import ModelSerializer, Serializer, ValidationError
+from rest_framework.fields import (
+    UUIDField,
+    DecimalField,
+    SerializerMethodField,
+    CharField,
+    BooleanField,
+    IntegerField,
+    DateField,
+    ChoiceField,
+)
 
 from apps.models import (
     Supplier,
@@ -14,19 +26,17 @@ from apps.models import (
     Agent,
     AgentOrder,
     User,
-    CreditAccount,
+    DebtCustomers,
     CreditTransaction,
 )
+from services import create_sale_with_stock, record_credit_charge
 
-from apps.services.sale import create_sale_with_stock
-from apps.services.credit import record_credit_charge
+from models import Branch
 
 
-class SupplierCatalogItemSerializer(serializers.ModelSerializer):
-    product_id = serializers.IntegerField(read_only=True, allow_null=True)
-    default_cost = serializers.DecimalField(
-        max_digits=12, decimal_places=2, required=False
-    )
+class SupplierCatalogItemSerializer(ModelSerializer):
+    product_id = UUIDField(read_only=True, allow_null=True)
+    default_cost = DecimalField(max_digits=12, decimal_places=2, required=False)
 
     class Meta:
         model = SupplierCatalogItem
@@ -44,8 +54,8 @@ class SupplierCatalogItemSerializer(serializers.ModelSerializer):
         read_only_fields = ["product", "product_id"]
 
 
-class SupplierSerializer(serializers.ModelSerializer):
-    business_id = serializers.UUIDField(source="branch_id", read_only=True)
+class SupplierSerializer(ModelSerializer):
+    business_id = UUIDField(source="branch_id", read_only=True)
     catalog = SupplierCatalogItemSerializer(many=True, required=False)
 
     class Meta:
@@ -55,11 +65,8 @@ class SupplierSerializer(serializers.ModelSerializer):
             "branch",
             "business_id",
             "name",
-            "contact",
             "phone",
-            "email",
             "address",
-            "category",
             "total_orders",
             "status",
             "catalog",
@@ -73,17 +80,17 @@ class SupplierSerializer(serializers.ModelSerializer):
         return supplier
 
 
-class WarehouseSerializer(serializers.ModelSerializer):
-    business_id = serializers.UUIDField(source="branch_id", read_only=True)
+class WarehouseSerializer(ModelSerializer):
+    business_id = UUIDField(source="branch_id", read_only=True)
 
     class Meta:
         model = Warehouse
         fields = ["id", "branch", "business_id", "name"]
 
 
-class InventoryItemSerializer(serializers.ModelSerializer):
-    product_id = serializers.IntegerField(read_only=True)
-    warehouse_id = serializers.IntegerField(read_only=True)
+class InventoryItemSerializer(ModelSerializer):
+    product_id = UUIDField(read_only=True)
+    warehouse_id = UUIDField(read_only=True)
 
     class Meta:
         model = InventoryItem
@@ -97,16 +104,16 @@ class InventoryItemSerializer(serializers.ModelSerializer):
         ]
 
 
-class SaleLineSerializer(serializers.ModelSerializer):
+class SaleLineSerializer(ModelSerializer):
     class Meta:
         model = SaleLine
         fields = ["id", "product_name", "quantity", "unit_price"]
 
 
-class PosCartDraftSerializer(serializers.ModelSerializer):
-    business_id = serializers.UUIDField(source="branch_id", read_only=True)
-    cashier_id = serializers.IntegerField(read_only=True)
-    item_count = serializers.SerializerMethodField()
+class PosCartDraftSerializer(ModelSerializer):
+    business_id = UUIDField(source="branch_id", read_only=True)
+    cashier_id = UUIDField(read_only=True)
+    item_count = SerializerMethodField()
 
     class Meta:
         model = PosCartDraft
@@ -131,7 +138,7 @@ class PosCartDraftSerializer(serializers.ModelSerializer):
 
     def validate_items(self, value):
         if not value:
-            raise serializers.ValidationError("Savat bo'sh bo'lishi mumkin emas")
+            raise ValidationError("Savat bo'sh bo'lishi mumkin emas")
         return value
 
     def validate(self, attrs):
@@ -148,7 +155,7 @@ class PosCartDraftSerializer(serializers.ModelSerializer):
             available = get_available_qty(branch.id, int(pid))
             if qty > available:
                 name = item.get("name") or f"#{pid}"
-                raise serializers.ValidationError(
+                raise ValidationError(
                     {
                         "items": (
                             f'"{name}" uchun skladda faqat {available} ta mavjud '
@@ -169,22 +176,14 @@ class PosCartDraftSerializer(serializers.ModelSerializer):
         return super().create(validated_data)
 
 
-class SaleSerializer(serializers.ModelSerializer):
+class SaleSerializer(ModelSerializer):
     lines = SaleLineSerializer(many=True, required=False)
-    business_id = serializers.UUIDField(source="branch_id", read_only=True)
-    pos_draft_id = serializers.IntegerField(
-        required=False, allow_null=True, write_only=True
-    )
-    customer_name = serializers.CharField(
-        required=False, allow_blank=True, write_only=True
-    )
-    customer_phone = serializers.CharField(
-        required=False, allow_blank=True, write_only=True
-    )
-    credit_account_id = serializers.IntegerField(
-        required=False, allow_null=True, write_only=True
-    )
-    create_new_credit_account = serializers.BooleanField(
+    business_id = UUIDField(source="branch_id", read_only=True)
+    pos_draft_id = UUIDField(required=False, allow_null=True, write_only=True)
+    customer_name = CharField(required=False, allow_blank=True, write_only=True)
+    customer_phone = CharField(required=False, allow_blank=True, write_only=True)
+    credit_account_id = UUIDField(required=False, allow_null=True, write_only=True)
+    create_new_credit_account = BooleanField(
         required=False, default=False, write_only=True
     )
 
@@ -219,12 +218,14 @@ class SaleSerializer(serializers.ModelSerializer):
         create_new_credit_account = validated_data.pop(
             "create_new_credit_account", False
         )
-        method = validated_data.get("method", "Naqd")
+        method = validated_data.get("method", Sale.PayMethod.CASH)
 
-        if method == "Nasiya" and not credit_account_id and not customer_name:
-            raise serializers.ValidationError(
-                {"customer_name": "Nasiya uchun mijozni tanlang yoki ismini kiriting"}
-            )
+        if (
+            method == Sale.PayMethod.CASH
+            and not credit_account_id
+            and not customer_name
+        ):
+            pass
 
         sale = create_sale_with_stock(
             validated_data, lines_data, exclude_draft_id=pos_draft_id
@@ -245,18 +246,18 @@ class SaleSerializer(serializers.ModelSerializer):
         return sale
 
 
-class CreditTransactionSerializer(serializers.ModelSerializer):
+class CreditTransactionSerializer(ModelSerializer):
     class Meta:
         model = CreditTransaction
         fields = ["id", "kind", "amount", "note", "cashier_name", "created_at", "sale"]
 
 
-class CreditAccountSerializer(serializers.ModelSerializer):
-    business_id = serializers.UUIDField(source="branch_id", read_only=True)
+class DebtCustomersSerializer(ModelSerializer):
+    business_id = UUIDField(source="branch_id", read_only=True)
     transactions = CreditTransactionSerializer(many=True, read_only=True)
 
     class Meta:
-        model = CreditAccount
+        model = DebtCustomers
         fields = [
             "id",
             "branch",
@@ -268,14 +269,14 @@ class CreditAccountSerializer(serializers.ModelSerializer):
         ]
 
 
-class CreditPaymentSerializer(serializers.Serializer):
-    amount = serializers.DecimalField(max_digits=14, decimal_places=2)
-    note = serializers.CharField(required=False, allow_blank=True, default="")
+class CreditPaymentSerializer(Serializer):
+    amount = DecimalField(max_digits=14, decimal_places=2)
+    note = CharField(required=False, allow_blank=True, default="")
 
 
-class PurchaseOrderLineSerializer(serializers.ModelSerializer):
-    product_id = serializers.IntegerField(allow_null=True, required=False)
-    catalog_item_id = serializers.IntegerField(allow_null=True, required=False)
+class PurchaseOrderLineSerializer(ModelSerializer):
+    product_id = UUIDField(allow_null=True, required=False)
+    catalog_item_id = UUIDField(allow_null=True, required=False)
 
     class Meta:
         model = PurchaseOrderLine
@@ -294,10 +295,10 @@ class PurchaseOrderLineSerializer(serializers.ModelSerializer):
         ]
 
 
-class PurchaseOrderSerializer(serializers.ModelSerializer):
+class PurchaseOrderSerializer(ModelSerializer):
     lines = PurchaseOrderLineSerializer(many=True, required=False)
-    business_id = serializers.UUIDField(source="branch_id", read_only=True)
-    supplier_id = serializers.IntegerField(allow_null=True, required=False)
+    business_id = UUIDField(source="branch_id", read_only=True)
+    supplier_id = UUIDField(allow_null=True, required=False)
 
     class Meta:
         model = PurchaseOrder
@@ -324,29 +325,29 @@ class PurchaseOrderSerializer(serializers.ModelSerializer):
         return order
 
 
-class PurchaseReceiveLineSerializer(serializers.Serializer):
-    line_id = serializers.IntegerField()
-    received_qty = serializers.IntegerField(min_value=0)
-    damaged_qty = serializers.IntegerField(min_value=0, required=False, default=0)
+class PurchaseReceiveLineSerializer(Serializer):
+    line_id = UUIDField()
+    received_qty = IntegerField(min_value=0)
+    damaged_qty = IntegerField(min_value=0, required=False, default=0)
 
 
-class PurchaseReceiveSerializer(serializers.Serializer):
-    warehouse = serializers.IntegerField()
-    receipt_date = serializers.DateField(required=False)
+class PurchaseReceiveSerializer(Serializer):
+    warehouse = UUIDField()
+    receipt_date = DateField(required=False)
     lines = PurchaseReceiveLineSerializer(many=True)
 
 
-class CustomerSerializer(serializers.ModelSerializer):
-    business_id = serializers.UUIDField(source="branch_id", read_only=True)
+class CustomerSerializer(ModelSerializer):
+    business_id = UUIDField(source="branch_id", read_only=True)
 
     class Meta:
         model = Customer
-        fields = ["id", "branch", "business_id", "name", "phone", "email"]
+        fields = ["id", "branch", "business_id", "name", "phone"]
 
 
-class AgentSerializer(serializers.ModelSerializer):
-    business_id = serializers.UUIDField(source="branch_id", read_only=True)
-    supplier_id = serializers.IntegerField(allow_null=True, required=False)
+class AgentSerializer(ModelSerializer):
+    business_id = UUIDField(source="branch_id", read_only=True)
+    supplier_id = UUIDField(allow_null=True, required=False)
 
     class Meta:
         model = Agent
@@ -358,7 +359,6 @@ class AgentSerializer(serializers.ModelSerializer):
             "phone",
             "supplier",
             "supplier_id",
-            "supplier_name",
         ]
 
     def create(self, validated_data):
@@ -368,9 +368,9 @@ class AgentSerializer(serializers.ModelSerializer):
         return super().create(validated_data)
 
 
-class AgentOrderSerializer(serializers.ModelSerializer):
-    business_id = serializers.UUIDField(source="branch_id", read_only=True)
-    agent_id = serializers.IntegerField(read_only=True)
+class AgentOrderSerializer(ModelSerializer):
+    business_id = UUIDField(source="branch_id", read_only=True)
+    agent_id = UUIDField(read_only=True)
 
     class Meta:
         model = AgentOrder
@@ -385,6 +385,7 @@ class AgentOrderSerializer(serializers.ModelSerializer):
             "items",
             "total",
             "date",
+            "status",
         ]
 
     def create(self, validated_data):
@@ -394,14 +395,13 @@ class AgentOrderSerializer(serializers.ModelSerializer):
         return super().create(validated_data)
 
 
-class UserStaffSerializer(serializers.ModelSerializer):
-    name = serializers.CharField(source="full_name", read_only=True)
+class UserStaffSerializer(ModelSerializer):
+    name = CharField(source="full_name", read_only=True)
 
     class Meta:
         model = User
         fields = [
             "id",
-            "username",
             "name",
             "first_name",
             "last_name",
@@ -414,43 +414,32 @@ class UserStaffSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
 
-class StaffCreateSerializer(serializers.Serializer):
-    username = serializers.CharField()
-    password = serializers.CharField(write_only=True)
-    name = serializers.CharField()
-    role = serializers.ChoiceField(choices=["boss", "manager", "cashier"])
-    phone = serializers.CharField(required=False, allow_blank=True)
-
-    def validate_username(self, value):
-        value = value.strip().lower()
-        if User.objects.filter(username=value).exists():
-            raise serializers.ValidationError("Bu login band")
-        return value
+class StaffCreateSerializer(Serializer):
+    first_name = CharField()
+    last_name = CharField()
+    phone = CharField(required=False, allow_blank=True)
+    password = CharField(write_only=True)
+    role = ChoiceField(choices=["boss", "manager", "cashier"])
+    branch = UUIDField(required=False, allow_null=True)
 
     def create(self, validated_data):
-        from apps.models import Branch
-        import random
+        role = validated_data["role"]
+        branch_id = validated_data.pop("branch", None)
 
-        name = validated_data.pop("name").strip()
-        parts = name.split(" ", 1)
-        first_name = parts[0]
-        last_name = parts[1] if len(parts) > 1 else "—"
-        phone = validated_data.pop("phone", "").strip()
-        if not phone:
-            phone = f"+99890{random.randint(1000000, 9999999)}"
-            while User.objects.filter(phone=phone).exists():
-                phone = f"+99890{random.randint(1000000, 9999999)}"
-
-        branch = None
-        if validated_data["role"] in ("manager", "cashier"):
+        branch = Branch.objects.filter(id=branch_id).first()
+        if not branch and role in ["manager", "cashier"]:
             branch = Branch.objects.first()
 
+        phone = (
+            validated_data.pop("phone", "").strip()
+            or f"90{random.randint(1000000, 9999999)}"
+        )
+
         return User.objects.create_user(
-            username=validated_data["username"],
-            password=validated_data["password"],
-            first_name=first_name,
-            last_name=last_name,
             phone=phone,
-            role=validated_data["role"],
+            password=validated_data["password"],
+            first_name=validated_data["first_name"].strip(),
+            last_name=validated_data["last_name"].strip(),
+            role=role,
             branch=branch,
         )
