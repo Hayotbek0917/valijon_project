@@ -11,6 +11,8 @@ from django.db.models import (
     BooleanField,
     EmailField,
 )
+from django.db.models import UUIDField, TextChoices, CharField, DateTimeField, ImageField, ForeignKey, SET_NULL, \
+    BooleanField
 import uuid
 
 from apps.models import CreatedModel, uzbek_phone_validator
