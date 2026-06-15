@@ -1,7 +1,7 @@
 from django.db.models import ForeignKey, CASCADE, CharField, PositiveIntegerField
 from django.db.models.constraints import UniqueConstraint
 
-from backend.apps.models import BaseModel
+from apps.models import BaseModel
 
 
 class Warehouse(BaseModel):

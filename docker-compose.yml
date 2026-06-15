@@ -1,7 +1,7 @@
 services:
   backend_service:
     build: ./backend/
-    env_file: backend/.env
+    env_file: .env
     environment:
       POSTGRES_HOST: postgres_service
     volumes:

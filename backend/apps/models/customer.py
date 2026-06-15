@@ -1,7 +1,7 @@
 from django.core.validators import RegexValidator
 from django.db.models import ForeignKey, CASCADE, CharField
 
-from backend.apps.models import BaseModel
+from apps.models import BaseModel
 
 uzbek_phone_validator = RegexValidator(
     regex=r'^\+998\d{9}$',

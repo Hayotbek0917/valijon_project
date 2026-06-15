@@ -12,11 +12,7 @@ class Sale(CreatedModel):
         TRANSFER = 'transfer', "O'tkazma"
         MIXED = 'mixed', 'Aralash'
 
-    branch = ForeignKey('apps.Branch',
-        CASCADE,
-        related_name='sales',
-        verbose_name='Filial',
-    )
+    branch = ForeignKey('apps.Branch', CASCADE, related_name='sales', verbose_name='Filial', )
     external_id = CharField(max_length=50, unique=True, null=True, blank=True, verbose_name='Tashqi ID')
     date = DateField(auto_now_add=True, verbose_name='Sana')
     time = models.TimeField(auto_now_add=True)
@@ -34,12 +30,7 @@ class Sale(CreatedModel):
 
 
 class SaleLine(TimeStampedModel):
-    sale = ForeignKey(
-        'apps.Sale',
-        CASCADE,
-        related_name='lines',
-        verbose_name='Sotuv',
-    )
+    sale = ForeignKey('apps.Sale', CASCADE, related_name='lines', verbose_name='Sotuv', )
     product_name = CharField(max_length=255)
     quantity = PositiveIntegerField(verbose_name='Miqdor')
     unit_price = DecimalField(max_digits=12, decimal_places=2, verbose_name='Narx')
@@ -55,18 +46,8 @@ class SaleLine(TimeStampedModel):
 class PosCartDraft(BaseModel):
     """Kassada navbat: mijoz ketganda savat vaqtincha saqlanadi."""
 
-    branch = ForeignKey(
-        'apps.Branch',
-        CASCADE,
-        related_name='pos_cart_drafts',
-        verbose_name='Filial',
-    )
-    cashier = ForeignKey(
-        'apps.User',
-        CASCADE,
-        related_name='pos_cart_drafts',
-        verbose_name='Kassir',
-    )
+    branch = ForeignKey('apps.Branch', CASCADE, related_name='pos_cart_drafts', verbose_name='Filial', )
+    cashier = ForeignKey('apps.User', CASCADE, related_name='pos_cart_drafts', verbose_name='Kassir', )
     label = CharField(max_length=120, verbose_name='Nom')
     pay_method = CharField(max_length=20, choices=Sale.PayMethod.choices, default=Sale.PayMethod.CASH, verbose_name="To'lov turi")
     items = JSONField(default=list, verbose_name='Mahsulotlar')

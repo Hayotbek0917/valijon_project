@@ -1,8 +1,7 @@
 from django.db.models import CharField, TextChoices, ForeignKey, PROTECT, SET_NULL, DecimalField, ImageField, \
     PositiveIntegerField
 
-from apps.models import TimeStampedModel
-from backend.apps.models import BaseModel
+from apps.models import TimeStampedModel, BaseModel
 
 
 class Category(BaseModel):

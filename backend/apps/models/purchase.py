@@ -46,8 +46,8 @@ class PurchaseOrderLine(BaseModel):
     name = CharField(max_length=255, verbose_name='Nomi')
     quantity = PositiveIntegerField(verbose_name='Miqdor')
     item_type = CharField(max_length=50, blank=True, default='', verbose_name='Turi')
-    size = CharField(max_length=50, blank=True, default='', verbose_name='O\'lchami')
-    unit = CharField(max_length=20, blank=True, default='ta', verbose_name='O\'lchov birligi')
+    size = CharField(max_length=50, blank=True, default='', verbose_name="O'lchami")
+    unit = CharField(max_length=20, blank=True, default='ta', verbose_name="O'lchov birligi")
     cost_price = DecimalField(max_digits=12, decimal_places=2, verbose_name='Narx')
 
 

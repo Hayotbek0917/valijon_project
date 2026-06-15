@@ -1,7 +1,7 @@
 from django.core.management.base import BaseCommand
 from django.utils import timezone
 from datetime import timedelta
-from backend.apps.models import PosCartDraft
+from apps.models import PosCartDraft
 
 class Command(BaseCommand):
     help = 'Eski qoralama savatlarni o\'chiradi'

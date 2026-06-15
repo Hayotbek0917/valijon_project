@@ -22,12 +22,7 @@ class Supplier(CreatedModel):
 class SupplierCatalogItem(BaseModel):
     """Ta'minotchi katalogidagi mahsulotlar (prixoddan keyin Product ga ulanadi)."""
 
-    supplier = ForeignKey(
-        'apps.Supplier',
-        CASCADE,
-        related_name='catalog',
-        verbose_name="Ta'minotchi",
-    )
+    supplier = ForeignKey('apps.Supplier', CASCADE, related_name='catalog', verbose_name="Ta'minotchi", )
     name = CharField(max_length=255)
     default_cost = DecimalField(max_digits=12, decimal_places=2, default=0, verbose_name='Standart narx')
     item_type = CharField(max_length=50, blank=True, default='', verbose_name='Turi')

@@ -7,4 +7,4 @@ from .inventory import Warehouse, InventoryItem
 from .sale import Sale, SaleLine, PosCartDraft
 from .purchase import PurchaseOrder, PurchaseOrderLine
 from .customer import Customer
-from .credit import DebtCustomers, CreditTransaction
+from .credit import CreditAccount, CreditTransaction

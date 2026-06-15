@@ -2,7 +2,7 @@
 __pycache__
 *.pyc
 .git
-.env
+../root/.env
 db.sqlite3
 media/*
 static/*
