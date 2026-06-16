@@ -15,4 +15,4 @@ from apps.views.pos_views import (
     UserStaffViewSet,
     StaffCreateAPIView,
 )
-from views.auth_views import RegisterView, LoginView
+from apps.views.auth_views import RegisterView, LoginView

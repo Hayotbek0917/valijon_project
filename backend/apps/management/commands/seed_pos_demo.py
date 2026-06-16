@@ -12,33 +12,33 @@ from apps.models import (
 
 DEMO_USERS = [
     dict(username='admin', password='123', first_name='Adminstrator', last_name='—', role='admin',
-         phone='+998901234567', email='admin@market.uz'),
+         phone='901234567', email='admin@market.uz'),
     dict(username='boss', password='123', first_name='Rustam', last_name='Boss', role='boss',
-         phone='+998901111111', email='boss@market.uz'),
+         phone='901111111', email='boss@market.uz'),
     dict(username='manager', password='123', first_name='Dilshod', last_name='Manager', role='manager',
-         phone='+998902222222', email='manager@market.uz'),
+         phone='902222222', email='manager@market.uz'),
     dict(username='kassir', password='123', first_name='Akmaljon', last_name='Kassir', role='cashier',
-         phone='+998907654321', email='akmaljon@market.uz'),
+         phone='907654321', email='akmaljon@market.uz'),
 ]
 
 PRODUCTS = [
-    ('Cola 1L', 'Ichimliklar', 10000, 7000, '🥤', '8901234567890', 150, False),
-    ('Pepsi 1L', 'Ichimliklar', 9500, 6500, '🥤', '8901234567891', 80, False),
-    ('Non (Tandir)', 'Oziq-ovqat', 8000, 4000, '🫓', '8901234567892', 20, False),
-    ("Lay's Chips", 'Shirinliklar', 12000, 8000, '🍟', '8901234567893', 100, False),
-    ('Snickers 50g', 'Shirinliklar', 9000, 6000, '🍫', '8901234567894', 15, True),
-    ('Smetana 20%', 'Sut mahsulotlari', 15000, 10000, '🥛', '8901234567895', 0, False),
-    ('Qatiq', 'Sut mahsulotlari', 11000, 7500, '🥛', '8901234567896', 0, False),
+    ('Cola 1L', 'Ichimliklar', 10000, 7000, '🥤', '8901234567890', 150),
+    ('Pepsi 1L', 'Ichimliklar', 9500, 6500, '🥤', '8901234567891', 80),
+    ('Non (Tandir)', 'Oziq-ovqat', 8000, 4000, '🫓', '8901234567892', 20),
+    ("Lay's Chips", 'Shirinliklar', 12000, 8000, '🍟', '8901234567893', 100),
+    ('Snickers 50g', 'Shirinliklar', 9000, 6000, '🍫', '8901234567894', 15),
+    ('Smetana 20%', 'Sut mahsulotlari', 15000, 10000, '🥛', '8901234567895', 0),
+    ('Qatiq', 'Sut mahsulotlari', 11000, 7500, '🥛', '8901234567896', 0),
 ]
 
 SUPPLIERS = [
-    dict(name='Coca-Cola Uzbekistan', contact='', phone='+998901112233',
+    dict(name='Coca-Cola Uzbekistan', contact='', phone='901112233',
          email='', address='', category='Ichimliklar',
          total_orders=45, catalog=[dict(name='Cola 1L', unit='litr')]),
-    dict(name='PepsiCo UZ', contact='', phone='+998912223344',
+    dict(name='PepsiCo UZ', contact='', phone='912223344',
          email='', address='', category='Ichimliklar',
          total_orders=32, catalog=[dict(name='Pepsi 1L', unit='litr')]),
-    dict(name='Novda Non', contact='', phone='+998923334455',
+    dict(name='Novda Non', contact='', phone='923334455',
          email='', address='', category='Non mahsulotlari',
          total_orders=78, catalog=[dict(name='Non (Tandir)', unit='dona')]),
 ]
@@ -51,23 +51,18 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         branch, _ = Branch.objects.get_or_create(
             name='Market (Oziq-ovqat)',
-            defaults={'address': 'Toshkent', 'phone': '+998901234567'},
+            defaults={'address': 'Toshkent', 'phone': '901234567'},
         )
 
         for data in DEMO_USERS:
             if User.objects.filter(username=data['username']).exists():
                 self.stdout.write(f'  = user {data["username"]} (mavjud)')
                 continue
-            User.objects.create_user(
-                username=data['username'],
-                password=data['password'],
-                phone=data['phone'],
-                email=data['email'],
-                first_name=data['first_name'],
-                last_name=data['last_name'],
-                role=data['role'],
-                branch=branch if data['role'] in ('manager', 'cashier') else None,
-            )
+            self.user = User.objects.create_user(username=data['username'], password=data['password'],
+                                                 phone=data['phone'], email=data['email'],
+                                                 first_name=data['first_name'], last_name=data['last_name'],
+                                                 role=data['role'],
+                                                 branch=branch if data['role'] in ('manager', 'cashier') else None, )
             self.stdout.write(f'  + user {data["username"]}')
 
         categories = {}
@@ -79,7 +74,7 @@ class Command(BaseCommand):
         )
 
         products_by_name = {}
-        for name, cat, price, cost, emoji, barcode, stock, is_draft in PRODUCTS:
+        for name, cat, price, cost, emoji, barcode, stock, in PRODUCTS:
             product, _ = Product.objects.update_or_create(
                 barcode=barcode,
                 defaults={
@@ -90,7 +85,6 @@ class Command(BaseCommand):
                     'base_price': Decimal(cost),
                     'emoji': emoji,
                     'stock': stock,
-                    'is_draft': is_draft,
                 },
             )
             products_by_name[name] = product
@@ -172,18 +166,18 @@ class Command(BaseCommand):
             )
 
         Customer.objects.get_or_create(
-            branch=branch, phone='+998901234567',
+            branch=branch, phone='901234567',
             defaults={'name': 'Bobur Mirzo', 'email': 'bobur@gmail.com'},
         )
         Customer.objects.get_or_create(
-            branch=branch, phone='+998934567890',
+            branch=branch, phone='934567890',
             defaults={'name': 'Zilola Ahmedova', 'email': 'zilola@gmail.com'},
         )
 
         agent, _ = Agent.objects.get_or_create(
             branch=branch, name='Agent Davron',
             defaults={
-                'phone': '+998909998877',
+                'phone': '909998877',
                 'supplier': cola_supplier,
                 'supplier_name': cola_supplier.name,
             },

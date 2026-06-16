@@ -1,9 +1,9 @@
 services:
   db:
-    image: postgres:alpine
+    image: postgres:16-alpine
     environment:
       POSTGRES_DB: pos_cursor
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_PASSWORD: 1
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -15,22 +15,22 @@ services:
       - "5433:5432"
 
   backend:
-    build: ./
+    build: ./backend
     env_file:
-      - .env.docker
+      - backend/.env
     environment:
       POSTGRES_HOST: db
     depends_on:
       db:
         condition: service_healthy
     ports:
-      - "${BACKEND_PORT:-8000}:8000"
+      - "${BACKEND_PORT:-9001}:8001"
     volumes:
       - media_data:/app/media
 
   frontend:
     build:
-      context: ./Pos
+      context: ./frontend
       dockerfile: Dockerfile
       args:
         VITE_API_URL: ""
