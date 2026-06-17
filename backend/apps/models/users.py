@@ -1,44 +1,83 @@
-from django.contrib.auth.models import AbstractUser
-from django.db.models import ForeignKey, CASCADE, CharField, TextChoices
-from apps.models.base_model import BaseModel, TimeStampedModel, uzbek_phone_validator
+import uuid
+
+from django.contrib.auth.base_user import BaseUserManager, AbstractBaseUser
+from django.contrib.auth.models import PermissionsMixin
+from django.db.models import ForeignKey, CharField, TextChoices, SET_NULL
+from django.db.models.fields import UUIDField, BooleanField, DateTimeField
+
+from apps.models import uzbek_phone_validator
 
 
-class Branch(TimeStampedModel):
-    market = ForeignKey("apps.Market", CASCADE, related_name="branches", verbose_name="Market")
-    name = CharField(max_length=255, verbose_name="Filial nomi")
-    address = CharField(max_length=500, blank=True, default="", verbose_name="Manzil")
-    phone = CharField(max_length=20, blank=True, validators=[uzbek_phone_validator], verbose_name="Telefon")
+class UserManager(BaseUserManager):
+    def create_user(self, phone, password=None, **extra_fields):
+        if not phone:
+            raise ValueError("Telefon raqami kiritilishi shart")
+        user = self.model(phone=phone, **extra_fields)
+        user.set_password(password)
+        user.save(using=self._db)
+        return user
 
-    class Meta:
-        ordering = ["name"]
-        verbose_name = "Filial"
-        verbose_name_plural = "Filiallar"
-
-    def __str__(self):
-        return f"{self.market.name} - {self.name}"
+    def create_superuser(self, phone, password=None, **extra_fields):
+        extra_fields.setdefault("is_staff", True)
+        extra_fields.setdefault("is_superuser", True)
+        extra_fields.setdefault("role", User.Role.OWNER)
+        return self.create_user(phone, password, **extra_fields)
 
 
-class User(AbstractUser, BaseModel):
+class User(AbstractBaseUser, PermissionsMixin):
     class Role(TextChoices):
-        OWNER = "owner", "Manger/Ega"
-        MANAGER = "manager", "Menejer"
-        CASHIER = "cashier", "Kassir"
+        OWNER = "owner", "Boss"
+        MANAGER = "manager", "Manager"
+        CASHIER = "cashier", "Cashier"
+        ADMIN = "admin", "Admin"
+
+    id = UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    phone = CharField(max_length=20, unique=True, validators=[uzbek_phone_validator])
+    first_name = CharField(max_length=50)
+    last_name = CharField(max_length=50, blank=True, null=True)
 
     branch = ForeignKey(
-        Branch,
-        CASCADE,
-        related_name="users",
+        "apps.Branch",
+        SET_NULL,
         null=True,
         blank=True,
-        verbose_name="Filial"
+        related_name="users",
     )
-    role = CharField(max_length=20, choices=Role.choices, default=Role.CASHIER, verbose_name="Rol")
-    phone = CharField(max_length=20, blank=True, validators=[uzbek_phone_validator], verbose_name="Telefon")
+
+    role = CharField(max_length=20, choices=Role.choices, default=Role.CASHIER)
+
+    is_active = BooleanField(default=True)
+    is_staff = BooleanField(default=False)
+    created_at = DateTimeField(auto_now_add=True)
+    updated_at = DateTimeField(auto_now=True)
+
+    objects = UserManager()
+
+    USERNAME_FIELD = "phone"
+    REQUIRED_FIELDS = ["first_name"]
 
     class Meta:
-        ordering = ["username"]
-        verbose_name = "Foydalanuvchi"
-        verbose_name_plural = "Foydalanuvchilar"
+        ordering = ["-created_at"]
 
-    def __str__(self):
-        return f"{self.username} ({self.get_role_display()})"
+    def __str__(self) -> str:
+        return f"{self.full_name} ({self.get_role_display()})"
+
+    @property
+    def full_name(self) -> str:
+        return f"{self.first_name} {self.last_name or ''}".strip()
+
+    @property
+    def is_owner(self):
+        return self.role == self.Role.OWNER
+
+    @property
+    def is_admin(self):
+        return self.role == self.Role.ADMIN
+
+    @property
+    def is_manager(self):
+        return self.role == self.Role.MANAGER
+
+    @property
+    def is_cashier(self):
+        return self.role == self.Role.CASHIER

@@ -1,16 +1,20 @@
 from django.db.models import (
-    CharField, TextChoices, ForeignKey, PROTECT, SET_NULL,
-    DecimalField, ImageField, PositiveIntegerField
+    CharField,
+    TextChoices,
+    ForeignKey,
+    PROTECT,
+    SET_NULL,
+    DecimalField,
+    ImageField,
+    PositiveIntegerField,
+    Q,
 )
+from django.db.models.constraints import UniqueConstraint
 from apps.models.base_model import TimeStampedModel, BaseModel
 
 
 class Category(BaseModel):
     name = CharField(max_length=255, unique=True, verbose_name="Kategoriya nomi")
-
-    class Meta:
-        verbose_name = "Kategoriya"
-        verbose_name_plural = "Kategoriyalar"
 
     def __str__(self):
         return self.name
@@ -23,7 +27,7 @@ class Product(TimeStampedModel):
         DRAFT = "draft", "Qoralama"
 
     name = CharField(max_length=255)
-    barcode = CharField(max_length=50, unique=True, blank=True, default="", verbose_name="Shtrix-kod")
+    barcode = CharField(max_length=50, blank=True, default="", verbose_name="Shtrix-kod")
     category = ForeignKey("apps.Category", PROTECT, related_name="products")
     branch = ForeignKey("apps.Branch", SET_NULL, null=True, blank=True, related_name="products")
 
@@ -31,13 +35,23 @@ class Product(TimeStampedModel):
     base_price = DecimalField(max_digits=12, decimal_places=2, verbose_name="Tannarx")
     emoji = CharField(max_length=16, blank=True, default="📦")
     image = ImageField(upload_to="products/", blank=True, null=True)
-    status = CharField(max_length=20, choices=Status.choices, default=Status.AVAILABLE, verbose_name="Holat")
+    status = CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.AVAILABLE,
+        verbose_name="Holat",
+    )
     stock = PositiveIntegerField(default=0, verbose_name="Qoldiq")
 
     class Meta:
         ordering = ["-created_at"]
-        verbose_name = "Mahsulot"
-        verbose_name_plural = "Mahsulotlar"
+        constraints = [
+            UniqueConstraint(
+                fields=["barcode"],
+                condition=Q(barcode__gt=""),
+                name="unique_product_barcode_when_set",
+            ),
+        ]
 
     def __str__(self):
         return self.name

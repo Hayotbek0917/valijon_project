@@ -1,6 +1,6 @@
 from .base_model import TimeStampedModel, BaseModel, CreatedModel, uzbek_phone_validator
-from .markets import Market
-from .users import User, Branch
+from .markets import Market, Branch
+from .users import User
 from .credit import DebtCustomers, CreditTransaction
 from .product import Category, Product
 from .supplier import Supplier, SupplierCatalogItem, Agent, AgentOrder
