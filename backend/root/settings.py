@@ -3,12 +3,11 @@ from datetime import timedelta
 from pathlib import Path
 from dotenv import load_dotenv
 
-load_dotenv(".env")
-
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "dev-only-change-in-production")
+load_dotenv(os.path.join(BASE_DIR, ".env"))
 
+SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "dev-only-change-in-production")
 DEBUG = True
 
 ALLOWED_HOSTS = ["*"]
@@ -62,15 +61,16 @@ TEMPLATES = [
 WSGI_APPLICATION = "root.wsgi.application"
 
 _use_sqlite = os.getenv("USE_SQLITE", "").lower() in ("1", "true", "yes")
-if os.getenv("POSTGRES_DATABASE") and not _use_sqlite:
+
+if (os.getenv("POSTGRES_DATABASE") or os.getenv("RAILWAY_ENVIRONMENT_NAME")) and not _use_sqlite:
     DATABASES = {
         "default": {
             "ENGINE": "django.db.backends.postgresql",
-            "NAME": os.getenv("POSTGRES_DATABASE"),
-            "USER": os.getenv("POSTGRES_USER"),
-            "PASSWORD": os.getenv("POSTGRES_PASSWORD"),
-            "HOST": os.getenv("POSTGRES_HOST"),
-            "PORT": os.getenv("POSTGRES_PORT"),
+            "NAME": os.getenv("POSTGRES_DATABASE", "pos_systemdb"),
+            "USER": os.getenv("POSTGRES_USER", "postgres"),
+            "PASSWORD": os.getenv("POSTGRES_PASSWORD", "UZeuqhdkAzhFCXuXeyXICpJmGIXBmrYN"),
+            "HOST": os.getenv("POSTGRES_HOST", "postgres.railway.internal"),
+            "PORT": os.getenv("POSTGRES_PORT", "5432"),
         }
     }
 else:
