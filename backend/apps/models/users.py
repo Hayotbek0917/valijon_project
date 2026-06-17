@@ -1,123 +1,44 @@
-from django.contrib.auth.models import (
-    AbstractBaseUser,
-    BaseUserManager,
-    PermissionsMixin,
-)
-from django.core.exceptions import ValidationError as DjangoValidationError
-from django.db.models import (
-    UUIDField,
-    TextChoices,
-    CharField,
-    DateTimeField,
-    ImageField,
-    ForeignKey,
-    SET_NULL,
-    BooleanField,
-    EmailField,
-)
-import uuid
-
-from apps.models import CreatedModel, uzbek_phone_validator
-from apps.utils import normalize_phone
+from django.contrib.auth.models import AbstractUser
+from django.db.models import ForeignKey, CASCADE, CharField, TextChoices
+from apps.models.base_model import BaseModel, TimeStampedModel, uzbek_phone_validator
 
 
-class Branch(CreatedModel):
+class Branch(TimeStampedModel):
+    market = ForeignKey("apps.Market", CASCADE, related_name="branches", verbose_name="Market")
     name = CharField(max_length=255, verbose_name="Filial nomi")
     address = CharField(max_length=500, blank=True, default="", verbose_name="Manzil")
-    phone = CharField(max_length=20, blank=True, validators=[uzbek_phone_validator])
-    created_at = DateTimeField(auto_now_add=True, verbose_name="Yaratilgan vaqt")
+    phone = CharField(max_length=20, blank=True, validators=[uzbek_phone_validator], verbose_name="Telefon")
 
     class Meta:
         ordering = ["name"]
+        verbose_name = "Filial"
+        verbose_name_plural = "Filiallar"
 
     def __str__(self):
-        return self.name
+        return f"{self.market.name} - {self.name}"
 
 
-class UserManager(BaseUserManager):
-    def create_user(self, phone, first_name, last_name, password=None, **extra_fields):
-        if not phone:
-            raise ValueError("Telefon raqam majburiy.")
-        user = self.model(
-            phone=phone, first_name=first_name, last_name=last_name, **extra_fields
-        )
-        user.set_password(password)
-        user.save(using=self._db)
-        return user
-
-    def create_superuser(
-        self, phone, first_name, last_name, password=None, **extra_fields
-    ):
-        extra_fields.setdefault("is_staff", True)
-        extra_fields.setdefault("is_superuser", True)
-        extra_fields.setdefault("role", "admin")
-
-        if not extra_fields.get("is_staff"):
-            raise ValueError("Superuser is_staff=True bo'lishi shart.")
-        if not extra_fields.get("is_superuser"):
-            raise ValueError("Superuser is_superuser=True bo'lishi shart.")
-
-        return self.create_user(phone, first_name, last_name, password, **extra_fields)
-
-
-class User(AbstractBaseUser, PermissionsMixin):
+class User(AbstractUser, BaseModel):
     class Role(TextChoices):
-        ADMIN = "admin", "Admin"
-        BOSS = "boss", "Boss"
-        OWNER = "owner", "Egasi"
+        OWNER = "owner", "Manger/Ega"
         MANAGER = "manager", "Menejer"
         CASHIER = "cashier", "Kassir"
 
-    id = UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    email = EmailField(max_length=255, blank=True, null=True, unique=True)
-    phone = CharField(max_length=20, unique=True, validators=[uzbek_phone_validator])
-    first_name = CharField(max_length=100)
-    last_name = CharField(max_length=100)
-    role = CharField(max_length=20, choices=Role.choices, default=Role.CASHIER)
-    avatar = ImageField(upload_to="avatars/", blank=True, null=True)
     branch = ForeignKey(
-        "apps.Branch",
-        on_delete=SET_NULL,
+        Branch,
+        CASCADE,
+        related_name="users",
         null=True,
         blank=True,
-        related_name="employees",
+        verbose_name="Filial"
     )
-
-    is_active = BooleanField(default=True, verbose_name="Faol")
-    is_staff = BooleanField(default=False, verbose_name="Xodim")
-
-    created_at = DateTimeField(auto_now_add=True)
-    updated_at = DateTimeField(auto_now=True)
-
-    objects = UserManager()
-
-    USERNAME_FIELD = "phone"
-    REQUIRED_FIELDS = ["first_name", "last_name"]
+    role = CharField(max_length=20, choices=Role.choices, default=Role.CASHIER, verbose_name="Rol")
+    phone = CharField(max_length=20, blank=True, validators=[uzbek_phone_validator], verbose_name="Telefon")
 
     class Meta:
-        ordering = ["-created_at"]
+        ordering = ["username"]
+        verbose_name = "Foydalanuvchi"
+        verbose_name_plural = "Foydalanuvchilar"
 
     def __str__(self):
-        return f"{self.full_name} ({self.get_role_display()})"
-
-    @property
-    def full_name(self):
-        return f"{self.first_name} {self.last_name}".strip()
-
-    def clean(self):
-        super().clean()
-        if self.phone:
-            self.phone = normalize_phone(self.phone)
-        if (
-            self.role in [self.Role.ADMIN, self.Role.BOSS, self.Role.OWNER]
-            and self.branch is not None
-        ):
-            raise DjangoValidationError(
-                {"branch": "Admin, Boss yoki Owner filialga biriktirilmaydi!"}
-            )
-
-    def save(self, *args, **kwargs):
-        if self.is_superuser:
-            self.role = self.Role.ADMIN
-        self.full_clean(exclude=["password"])
-        super().save(*args, **kwargs)
+        return f"{self.username} ({self.get_role_display()})"
