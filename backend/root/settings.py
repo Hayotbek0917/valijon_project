@@ -67,6 +67,8 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "root.wsgi.application"
 
+
+
 _use_sqlite = os.getenv("USE_SQLITE", "").lower() in ("1", "true", "yes")
 if os.getenv("DATABASE_URL"):
     DATABASES = {"default": dj_database_url.config(default=os.getenv("DATABASE_URL"))}
@@ -77,6 +79,8 @@ else:
             "NAME": BASE_DIR / "db.sqlite3",
         }
     }
+
+
 
 CORS_ALLOWED_ORIGINS = [
     origin.strip()

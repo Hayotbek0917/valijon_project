@@ -1,14 +1,11 @@
-from django.db.models import CharField, TextChoices, Q
+from django.db.models import CharField, TextChoices, Q, ForeignKey, CASCADE
 from django.db.models.constraints import UniqueConstraint
+
+from apps.models import TimeStampedModel
 from apps.models.base_model import CreatedModel, uzbek_phone_validator
 
 
 class Market(CreatedModel):
-    """
-    Tizimdagi eng yuqori daraja — bitta biznes/do'kon egasi.
-    Bir Market bir nechta Filial(Branch)ga ega bo'lishi mumkin.
-    """
-
     class Status(TextChoices):
         ACTIVE = "active", "Faol"
         INACTIVE = "inactive", "Nofaol"
@@ -44,3 +41,18 @@ class Market(CreatedModel):
     @property
     def branch_count(self):
         return self.branches.count()
+
+
+class Branch(TimeStampedModel):
+    market = ForeignKey(
+        "apps.Market", CASCADE, related_name="branches", verbose_name="Market"
+    )
+    name = CharField(max_length=255, verbose_name="Filial nomi")
+    address = CharField(max_length=500, blank=True, default="", verbose_name="Manzil")
+    phone = CharField(max_length=20, blank=True, validators=[uzbek_phone_validator])
+
+    class Meta:
+        ordering = ["name"]
+
+    def __str__(self):
+        return f"{self.market.name} - {self.name}"

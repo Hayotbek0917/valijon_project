@@ -1,12 +1,14 @@
 from django.core.exceptions import ValidationError
 from django.db.models import (
     TextChoices, ForeignKey, CASCADE, CharField, SET_NULL,
-    DateField, DecimalField, PositiveIntegerField
+    DateField, DecimalField, PositiveIntegerField, Q
 )
+from django.db.models.constraints import UniqueConstraint
 from apps.models.base_model import BaseModel, CreatedModel
 
 
 class PurchaseOrder(CreatedModel):
+    """Xarid Buyurtmasi"""
     class Status(TextChoices):
         DRAFT = "draft", "Qoralama"
         PENDING = "pending", "Kutilmoqda"
@@ -15,7 +17,7 @@ class PurchaseOrder(CreatedModel):
         CANCELLED = "cancelled", "Bekor qilindi"
 
     branch = ForeignKey("apps.Branch", CASCADE, related_name="purchase_orders")
-    external_id = CharField(max_length=50, unique=True, null=True, blank=True, verbose_name="Tashqi ID")
+    external_id = CharField(max_length=50, null=True, blank=True, verbose_name="Tashqi ID")
     supplier = ForeignKey("apps.Supplier", SET_NULL, null=True, blank=True, related_name="orders", verbose_name="Ta'minotchi")
     supplier_name = CharField(max_length=255, blank=True, default="", verbose_name="Ta'minotchi nomi")
     date = DateField(verbose_name="Sana")
@@ -25,8 +27,13 @@ class PurchaseOrder(CreatedModel):
 
     class Meta:
         ordering = ["-date"]
-        verbose_name = "Xarid Buyurtmasi"
-        verbose_name_plural = "Xarid Buyurtmalari"
+        constraints = [
+            UniqueConstraint(
+                fields=["external_id"],
+                condition=Q(external_id__gt=""),
+                name="unique_purchase_order_external_id_when_set",
+            ),
+        ]
 
     def __str__(self):
         return f"{self.external_id} - {self.supplier_name}"
@@ -44,6 +51,7 @@ class PurchaseOrder(CreatedModel):
 
 
 class PurchaseOrderLine(BaseModel):
+    """Xarid Satri"""
     order = ForeignKey("apps.PurchaseOrder", CASCADE, related_name="lines", verbose_name="Buyurtma")
     product = ForeignKey("apps.Product", SET_NULL, null=True, blank=True, related_name="purchase_lines", verbose_name="Mahsulot")
     catalog_item = ForeignKey("apps.SupplierCatalogItem", SET_NULL, null=True, blank=True, related_name="order_lines", verbose_name="Katalog elementi")
@@ -59,9 +67,6 @@ class PurchaseOrderLine(BaseModel):
     def subtotal(self):
         return self.quantity * self.cost_price
 
-    class Meta:
-        verbose_name = "Xarid Satri"
-        verbose_name_plural = "Xarid Satrlari"
 
     def __str__(self):
         return f"{self.name} x{self.quantity}"

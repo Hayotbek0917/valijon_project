@@ -99,7 +99,7 @@ class Command(BaseCommand):
             # username kalitini olib tashlaymiz, chunki modelda u yo'q
             phone = data["phone"]
             if not User.objects.filter(phone=phone).exists():
-                user = User.objects.create_user(
+                User.objects.create_user(
                     phone=phone,
                     password=data["password"],
                     email=data["email"],
@@ -110,7 +110,6 @@ class Command(BaseCommand):
                 )
                 self.stdout.write(f"  + user {phone}")
 
-        # 3. Qolgan logikalar o'zgarishsiz qoladi...
         categories = {}
         for name in [
             "Ichimliklar",
