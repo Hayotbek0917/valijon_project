@@ -90,15 +90,17 @@ SUPPLIERS = [
 
 
 class Command(BaseCommand):
-    help = "POS demo ma'lumotlarini yuklash"
+    help = "Demo ma'lumotlarni yuklash"
 
     @transaction.atomic
     def handle(self, *args, **options):
+        # 1. Branch yaratish (Bu juda muhim, chunki pastdagi kod bunga tayanadi)
         branch, _ = Branch.objects.get_or_create(
             name="Market (Oziq-ovqat)",
             defaults={"address": "Toshkent", "phone": "901234567"},
         )
 
+        # 2. Userlarni yaratish
         for data in DEMO_USERS:
             if not User.objects.filter(username=data["username"]).exists():
                 User.objects.create_user(
@@ -113,6 +115,7 @@ class Command(BaseCommand):
                 )
                 self.stdout.write(f"  + user {data['username']}")
 
+        # 3. Qolgan logikalar
         categories = {}
         for name in [
             "Ichimliklar",
