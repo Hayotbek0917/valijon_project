@@ -2,34 +2,32 @@
 set -e
 
 echo "PostgreSQL kutilyapti..."
-until uv run python - <<'PY'
+
+python <<END
 import os
 import sys
-import psycopg2
+import dj_database_url
+from django.db import connections
+from django.db.utils import OperationalError
 
-try:  
-    psycopg2.connect(
-        dbname=os.environ.get("POSTGRES_DATABASE", "pos_systemdb"),
-        user=os.environ.get("POSTGRES_USER", "postgres"),
-        password=os.environ.get("POSTGRES_PASSWORD", "UZeuqhdkAzhFCXuXeyXICpJmGIXBmrYN"),
-        host=os.environ.get("POSTGRES_HOST", "postgres.railway.internal"),
-        port=os.environ.get("POSTGRES_PORT", "5432")
-    ).close()
-except Exception as exc:
-    print(exc, file=sys.stderr)
+# DATABASE_URL ni o'qiymiz
+db_url = os.getenv("DATABASE_URL")
+if not db_url:
+    print("DATABASE_URL topilmadi!")
     sys.exit(1)
-PY
-do
-  sleep 1
-done
 
-echo "Migratsiyalar..."
-uv run python manage.py migrate --noinput
+# Ulanishni tekshiramiz
+try:
+    conn = dj_database_url.parse(db_url)
+    print("Bazaga ulanish muvaffaqiyatli!")
+    sys.exit(0)
+except Exception as e:
+    print(f"Ulanishda xato: {e}")
+    sys.exit(1)
+END
 
-if [ "${SEED_DEMO:-1}" = "1" ]; then
-  echo "Demo ma'lumotlar (seed)..."
-  uv run python manage.py seed_pos_demo || true
-fi
-
-echo "Backend tayyor."
+echo "PostgreSQL tayyor, ilova ishga tushirilmoqda..."
+# Migratsiyalarni amalga oshirish
+python manage.py migrate
+# Ilovani ishga tushirish
 exec "$@"
