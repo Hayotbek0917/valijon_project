@@ -2,7 +2,6 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 
-
 export default defineConfig({
   plugins: [
     react(),
@@ -27,24 +26,17 @@ export default defineConfig({
   preview: {
     port: 3000,
     host: true,
+    allowedHosts: ['corepos.up.railway.app'],
     proxy: {
       '/api': {
-        target: 'http://backend_service:8001',
+        target: 'https://corepos-api.up.railway.app',
         changeOrigin: true,
-        configure: (proxy) => {
-          proxy.on('proxyReq', (proxyReq) => {
-            proxyReq.setHeader('Host', 'localhost:8000');
-          });
-        },
+        secure: false,
       },
       '/auth': {
-        target: 'http://backend_service:8001',
+        target: 'https://corepos-api.up.railway.app',
         changeOrigin: true,
-        configure: (proxy) => {
-          proxy.on('proxyReq', (proxyReq) => {
-            proxyReq.setHeader('Host', 'localhost:8000');
-          });
-        },
+        secure: false,
       },
     },
   },
