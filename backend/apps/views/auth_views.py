@@ -1,4 +1,4 @@
-from rest_framework.views import APIView
+from rest_framework.generics import GenericAPIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import AllowAny
@@ -6,12 +6,12 @@ from rest_framework_simplejwt.tokens import RefreshToken
 
 from apps.serializers import RegisterModelSerializer, LoginModelSerializer
 
-
-class RegisterView(APIView):
+class RegisterView(GenericAPIView):
     permission_classes = [AllowAny]
+    serializer_class = RegisterModelSerializer
 
     def post(self, request):
-        serializer = RegisterModelSerializer(data=request.data)
+        serializer = self.get_serializer(data=request.data)
         if serializer.is_valid():
             serializer.save()
             return Response(
@@ -20,13 +20,12 @@ class RegisterView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-class LoginView(APIView):
+class LoginView(GenericAPIView):
     permission_classes = [AllowAny]
+    serializer_class = LoginModelSerializer
 
     def post(self, request):
-        serializer = LoginModelSerializer(
-            data=request.data, context={"request": request}
-        )
+        serializer = self.get_serializer(data=request.data)
         if serializer.is_valid():
             user = serializer.validated_data["user"]
             refresh = RefreshToken.for_user(user)
