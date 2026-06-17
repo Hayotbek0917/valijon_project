@@ -69,8 +69,8 @@ if os.getenv("POSTGRES_DATABASE") and not _use_sqlite:
             "NAME": os.getenv("POSTGRES_DATABASE"),
             "USER": os.getenv("POSTGRES_USER"),
             "PASSWORD": os.getenv("POSTGRES_PASSWORD"),
-            "HOST": os.getenv("POSTGRES_HOST", "localhost"),
-            "PORT": os.getenv("POSTGRES_PORT", "5433"),
+            "HOST": os.getenv("POSTGRES_HOST"),
+            "PORT": os.getenv("POSTGRES_PORT"),
         }
     }
 else:
