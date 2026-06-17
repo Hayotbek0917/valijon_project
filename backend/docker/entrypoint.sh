@@ -2,10 +2,12 @@
 set -e
 
 echo "PostgreSQL kutilyapti..."
-# Python3 deb aniq ko'rsatildi va uv muhitida ishga tushirildi
-until uv run python3 docker/wait_for_db.py; do
+until nc -z "${POSTGRES_HOST:-postgres.railway.internal}" "${POSTGRES_PORT:-5432}"; do
+  echo "Baza hali tayyor emas, kutilmoqda..."
   sleep 1
 done
+
+echo "PostgreSQL tayyor!"
 
 echo "Migratsiyalar..."
 uv run python3 manage.py migrate --noinput
