@@ -101,7 +101,7 @@ class Command(BaseCommand):
                 branch=branch, name=sdata['name'],
                 defaults={**sdata, 'status': 'Faol'},
             )
-            suppliers_by_name[sdata['name']] = supplier
+            suppliers_by_name[data['name']] = supplier
             for entry in catalog_names:
                 if isinstance(entry, str):
                     cname, unit = entry, 'dona'
