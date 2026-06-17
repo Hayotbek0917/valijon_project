@@ -1,167 +1,84 @@
-from decimal import Decimal
 from django.core.management.base import BaseCommand
 from django.db import transaction
+from decimal import Decimal
 from apps.models import (
     User,
+    Market,
     Branch,
     Category,
     Product,
-    Supplier,
-    SupplierCatalogItem,
     Warehouse,
     InventoryItem,
-    Sale,
-    PurchaseOrder,
-    PurchaseOrderLine,
-    Customer,
-    Agent,
-    AgentOrder,
+    Supplier,
+    SupplierCatalogItem,
 )
-
-DEMO_USERS = [
-    dict(
-        password="123",
-        first_name="Adminstrator",
-        last_name="?",
-        role="admin",
-        phone="901234567",
-        email="admin@market.uz",
-    ),
-    dict(
-        password="123",
-        first_name="Rustam",
-        last_name="Boss",
-        role="boss",
-        phone="901111111",
-        email="boss@market.uz",
-    ),
-    dict(
-        password="123",
-        first_name="Dilshod",
-        last_name="Manager",
-        role="manager",
-        phone="902222222",
-        email="manager@market.uz",
-    ),
-    dict(
-        password="123",
-        first_name="Akmaljon",
-        last_name="Kassir",
-        role="cashier",
-        phone="907654321",
-        email="akmaljon@market.uz",
-    ),
-]
-PRODUCTS = [
-    ("Cola 1L", "Ichimliklar", 10000, 7000, "?", "8901234567890", 150),
-    ("Pepsi 1L", "Ichimliklar", 9500, 6500, "?", "8901234567891", 80),
-    ("Non (Tandir)", "Oziq-ovqat", 8000, 4000, "?", "8901234567892", 20),
-    ("Lay's Chips", "Shirinliklar", 12000, 8000, "?", "8901234567893", 100),
-    ("Snickers 50g", "Shirinliklar", 9000, 6000, "?", "8901234567894", 15),
-    ("Smetana 20%", "Sut mahsulotlari", 15000, 10000, "?", "8901234567895", 0),
-    ("Qatiq", "Sut mahsulotlari", 11000, 7500, "?", "8901234567896", 0),
-]
-
-SUPPLIERS = [
-    dict(
-        name="Coca-Cola Uzbekistan",
-        phone="901112233",
-        address="Toshkent",
-        catalog=[dict(name="Cola 1L", unit="litr")],
-    ),
-    dict(
-        name="PepsiCo UZ",
-        phone="912223344",
-        address="Toshkent",
-        catalog=[dict(name="Pepsi 1L", unit="litr")],
-    ),
-    dict(
-        name="Novda Non",
-        phone="923334455",
-        address="Toshkent",
-        catalog=[dict(name="Non (Tandir)", unit="dona")],
-    ),
-]
 
 
 class Command(BaseCommand):
-    help = "Demo ma'lumotlarni yuklash"
+    help = "Demo ma'lumotlarni bazaga yuklash"
 
     @transaction.atomic
-    def handle(self, *args, **options):
-        # 1. Branch yaratish
+    def handle(self, *args, **kwargs):
+        self.stdout.write("Ma'lumotlar yuklanmoqda...")
+
+        # 1. Market yaratish
+        market, _ = Market.objects.get_or_create(
+            name="Asosiy Market",
+            defaults={"phone": "990001234", "address": "Toshkent shahar"},
+        )
+
+        # 2. Filial yaratish
         branch, _ = Branch.objects.get_or_create(
-            name="Market (Oziq-ovqat)",
-            defaults={"address": "Toshkent", "phone": "901234567"},
+            name="Markaziy Filial",
+            market=market,
+            defaults={"address": "Chilonzor ko'chasi", "phone": "990001234"},
         )
 
-        for data in DEMO_USERS:
-            # username kalitini olib tashlaymiz, chunki modelda u yo'q
-            phone = data["phone"]
-            if not User.objects.filter(phone=phone).exists():
-                User.objects.create_user(
-                    phone=phone,
-                    password=data["password"],
-                    email=data["email"],
-                    first_name=data["first_name"],
-                    last_name=data["last_name"],
-                    role=data["role"],
-                    branch=branch if data["role"] in ("manager", "cashier") else None,
-                )
-                self.stdout.write(f"  + user {phone}")
+        users_data = [
+            ("901234567", "123", "Admin", "Admin", User.Role.ADMIN),
+            ("901111111", "123", "Rustam", "Boss", User.Role.OWNER),
+            ("902222222", "123", "Dilshod", "Manager", User.Role.MANAGER),
+            ("907654321", "123", "Akmal", "Kassir", User.Role.CASHIER),
+        ]
 
-        categories = {}
-        for name in [
-            "Ichimliklar",
-            "Oziq-ovqat",
-            "Sut mahsulotlari",
-            "Shirinliklar",
-            "Kraxmal",
-        ]:
-            categories[name], _ = Category.objects.get_or_create(name=name)
-
-        warehouse, _ = Warehouse.objects.get_or_create(
-            branch=branch, name="Asosiy Oziq-ovqat Ombori"
-        )
-
-        products_by_name = {}
-        for name, cat, price, cost, emoji, barcode, stock in PRODUCTS:
-            product, _ = Product.objects.update_or_create(
-                barcode=barcode,
+        for phone, password, first, last, role in users_data:
+            user, created = User.objects.get_or_create(
+                phone=phone,
                 defaults={
-                    "name": name,
-                    "category": categories[cat],
-                    "branch": branch,
-                    "selling_price": Decimal(price),
-                    "base_price": Decimal(cost),
-                    "emoji": emoji,
-                    "stock": stock,
+                    "password": password,
+                    "first_name": first,
+                    "last_name": last,
+                    "role": role,
+                    "branch": branch if role != User.Role.OWNER else None,
                 },
             )
-            products_by_name[name] = product
-            if stock > 0:
-                InventoryItem.objects.update_or_create(
-                    product=product, warehouse=warehouse, defaults={"quantity": stock}
-                )
+            if created:
+                user.set_password(password)
+                user.save()
 
-        for data in SUPPLIERS:
-            catalog_items = data.pop("catalog")
-            supplier, _ = Supplier.objects.get_or_create(
-                branch=branch, name=data["name"], defaults={**data, "status": "Faol"}
-            )
-            for entry in catalog_items:
-                cname, unit = entry["name"], entry.get("unit", "dona")
-                product = products_by_name.get(cname)
-                SupplierCatalogItem.objects.update_or_create(
-                    supplier=supplier,
-                    name=cname,
-                    defaults={
-                        "category": product.category.name if product else "Boshqa",
-                        "default_cost": product.base_price if product else Decimal("0"),
-                        "product": product,
-                        "unit": unit,
-                    },
-                )
+        self.stdout.write(self.style.SUCCESS("Foydalanuvchilar yaratildi."))
+
+        cat, _ = Category.objects.get_or_create(name="Ichimliklar")
+        warehouse, _ = Warehouse.objects.get_or_create(
+            name="Asosiy Ombor", branch=branch
+        )
+
+        product, _ = Product.objects.update_or_create(
+            barcode="8901234567890",
+            defaults={
+                "name": "Cola 1L",
+                "category": cat,
+                "branch": branch,
+                "selling_price": Decimal("10000.00"),
+                "base_price": Decimal("7000.00"),
+                "stock": 100,
+            },
+        )
+
+        # 5. Inventory (Ombor)
+        InventoryItem.objects.update_or_create(
+            product=product, warehouse=warehouse, defaults={"quantity": 100}
+        )
 
         self.stdout.write(
             self.style.SUCCESS("Demo ma'lumotlar muvaffaqiyatli yuklandi!")
