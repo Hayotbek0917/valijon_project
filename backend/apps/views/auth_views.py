@@ -5,6 +5,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from apps.serializers import RegisterModelSerializer, LoginModelSerializer
+from apps.serializers.pos_serializers import UserStaffSerializer
 
 
 class RegisterView(APIView):
@@ -34,6 +35,7 @@ class LoginView(APIView):
                 {
                     "refresh": str(refresh),
                     "access": str(refresh.access_token),
+                    "user": UserStaffSerializer(user).data,
                 },
                 status=status.HTTP_200_OK,
             )

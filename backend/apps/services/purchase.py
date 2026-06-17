@@ -3,7 +3,7 @@ from decimal import Decimal
 from django.db import transaction
 from django.utils import timezone
 
-from apps.models import Product, Category, InventoryItem
+from apps.models import Product, Category, InventoryItem, PurchaseOrder
 
 
 @transaction.atomic
@@ -27,7 +27,7 @@ def receive_purchase_order(order, warehouse, receipt_date, line_receipts):
             product = catalog_item.product
 
         if not product:
-            category_name = (catalog_item.category if catalog_item else '') or (order.supplier.category if order.supplier else '') or 'Boshqa'
+            category_name = 'Boshqa'
             category, _ = Category.objects.get_or_create(name=category_name)
             cost = line.cost_price or (catalog_item.default_cost if catalog_item else Decimal('0'))
             selling = cost or Decimal('0')
@@ -60,7 +60,7 @@ def receive_purchase_order(order, warehouse, receipt_date, line_receipts):
         product.stock = (product.stock or 0) + received_qty
         product.save(update_fields=['stock'])
 
-    order.status = 'Yetkazilgan'
+    order.status = PurchaseOrder.Status.DELIVERED
     order.receipt_date = receipt_date or timezone.localdate()
     order.save(update_fields=['status', 'receipt_date'])
 

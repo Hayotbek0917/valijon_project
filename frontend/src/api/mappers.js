@@ -1,5 +1,67 @@
 import { resolveMediaUrl } from '../utils/image';
 
+const SUPPLIER_STATUS_LABELS = {
+  active: 'Faol',
+  inactive: 'Nofaol',
+};
+
+const PURCHASE_STATUS_LABELS = {
+  draft: 'Qoralama',
+  pending: 'Kutilmoqda',
+  in_delivery: 'Yetkazilmoqda',
+  delivered: 'Yetkazilgan',
+  cancelled: 'Bekor qilindi',
+};
+
+const PAY_METHOD_LABELS = {
+  cash: 'Naqd',
+  card: 'Karta',
+  transfer: 'Online',
+  credit: 'Nasiya',
+  mixed: 'Aralash',
+};
+
+export function supplierStatusLabel(value) {
+  return SUPPLIER_STATUS_LABELS[value] || value || 'Faol';
+}
+
+export function purchaseStatusLabel(value) {
+  return PURCHASE_STATUS_LABELS[value] || value || '';
+}
+
+export function payMethodLabel(value) {
+  return PAY_METHOD_LABELS[value] || value || 'Naqd';
+}
+
+export function supplierStatusCode(value) {
+  const labels = { Faol: 'active', Nofaol: 'inactive' };
+  return labels[value] || value || 'active';
+}
+
+export function purchaseStatusCode(value) {
+  const labels = {
+    Qoralama: 'draft',
+    Kutilmoqda: 'pending',
+    Yetkazilmoqda: 'in_delivery',
+    Yetkazilgan: 'delivered',
+    Yetkazildi: 'delivered',
+    'Bekor qilindi': 'cancelled',
+  };
+  return labels[value] || value || 'pending';
+}
+
+export function payMethodCode(value) {
+  const labels = {
+    Naqd: 'cash',
+    Karta: 'card',
+    Online: 'transfer',
+    "O'tkazma": 'transfer',
+    Nasiya: 'credit',
+    Aralash: 'mixed',
+  };
+  return labels[value] || value || 'cash';
+}
+
 export function mapUserFromApi(u) {
   return {
     id: u.id,
@@ -62,7 +124,7 @@ export function mapSupplierFromApi(s) {
     address: s.address || '',
     category: s.category || '',
     totalOrders: s.total_orders ?? 0,
-    status: s.status || 'Faol',
+    status: supplierStatusLabel(s.status),
     businessId: s.business_id || s.branch,
     catalog: (s.catalog || []).map(mapCatalogItemFromApi),
   };
@@ -102,7 +164,7 @@ export function mapPurchaseOrderFromApi(o) {
       costPrice: Number(l.cost_price ?? 0),
     })),
     total: Number(o.total ?? 0),
-    status: o.status || '',
+    status: purchaseStatusLabel(o.status),
     receiptDate: o.receipt_date || null,
   };
 }
@@ -171,7 +233,7 @@ export function mapSaleFromApi(s) {
     time: s.time || '',
     items: s.items || [],
     amount: Number(s.amount ?? 0),
-    method: s.method || 'Naqd',
+    method: payMethodLabel(s.method),
     cashier: s.cashier_name || '',
     businessId: s.business_id || s.branch,
   };

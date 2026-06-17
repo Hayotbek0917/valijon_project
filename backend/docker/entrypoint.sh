@@ -11,8 +11,8 @@ try:
     psycopg2.connect(
         dbname=os.environ.get("POSTGRES_DATABASE", "pos_cursor"),
         user=os.environ.get("POSTGRES_USER", "postgres"),
-        password=os.environ.get("POSTGRES_PASSWORD", ""),
-        host=os.environ.get("POSTGRES_HOST", "postgres_service"),
+        password=os.environ.get("POSTGRES_PASSWORD", "1"),
+        host=os.environ.get("POSTGRES_HOST", "db"),
         port=os.environ.get("POSTGRES_PORT", "5432"),
     ).close()
 except Exception as exc:

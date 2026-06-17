@@ -55,14 +55,19 @@ class Command(BaseCommand):
         )
 
         for data in DEMO_USERS:
-            if User.objects.filter(username=data['username']).exists():
+            if User.objects.filter(phone=data['phone']).exists():
                 self.stdout.write(f'  = user {data["username"]} (mavjud)')
                 continue
-            self.user = User.objects.create_user(username=data['username'], password=data['password'],
-                                                 phone=data['phone'], email=data['email'],
-                                                 first_name=data['first_name'], last_name=data['last_name'],
-                                                 role=data['role'],
-                                                 branch=branch if data['role'] in ('manager', 'cashier') else None, )
+            User.objects.create_user(
+                phone=data['phone'],
+                password=data['password'],
+                first_name=data['first_name'],
+                last_name=data['last_name'],
+                username=data['username'],
+                email=data['email'],
+                role=data['role'],
+                branch=branch if data['role'] in ('manager', 'cashier') else None,
+            )
             self.stdout.write(f'  + user {data["username"]}')
 
         categories = {}
@@ -98,8 +103,14 @@ class Command(BaseCommand):
         for sdata in SUPPLIERS:
             catalog_names = sdata.pop('catalog')
             supplier, _ = Supplier.objects.get_or_create(
-                branch=branch, name=sdata['name'],
-                defaults={**sdata, 'status': 'Faol'},
+                branch=branch,
+                name=sdata["name"],
+                defaults={
+                    "phone": sdata["phone"],
+                    "address": sdata["address"],
+                    "status": Supplier.Status.ACTIVE,
+                    "total_orders": sdata["total_orders"],
+                },
             )
             suppliers_by_name[sdata['name']] = supplier
             for entry in catalog_names:
@@ -108,15 +119,15 @@ class Command(BaseCommand):
                 else:
                     cname, unit = entry['name'], entry.get('unit', 'dona')
                 product = products_by_name.get(cname)
-                cat = product.category.name if product else sdata['category']
-                cost = product.base_price if product else Decimal('0')
+                cost = product.base_price if product else Decimal("0")
+
                 SupplierCatalogItem.objects.update_or_create(
-                    supplier=supplier, name=cname,
+                    supplier=supplier,
+                    name=cname,
                     defaults={
-                        'category': cat,
-                        'default_cost': cost,
-                        'product': product,
-                        'unit': unit,
+                        "default_cost": cost,
+                        "product": product,
+                        "unit": unit,
                     },
                 )
 
@@ -129,7 +140,7 @@ class Command(BaseCommand):
                 'supplier_name': cola_supplier.name,
                 'date': '2026-05-18',
                 'total': Decimal('1050000'),
-                'status': 'Yetkazilgan',
+                'status': PurchaseOrder.Status.DELIVERED,
                 'receipt_date': '2026-05-18',
             },
         )
@@ -152,7 +163,7 @@ class Command(BaseCommand):
                 'supplier_name': non_supplier.name,
                 'date': '2026-05-20',
                 'total': Decimal('800000'),
-                'status': 'Kutilmoqda',
+                'status': PurchaseOrder.Status.PENDING,
             },
         )
         po2 = PurchaseOrder.objects.get(external_id='PO-002')
@@ -167,11 +178,11 @@ class Command(BaseCommand):
 
         Customer.objects.get_or_create(
             branch=branch, phone='901234567',
-            defaults={'name': 'Bobur Mirzo', 'email': 'bobur@gmail.com'},
+            defaults={'name': 'Bobur Mirzo'},
         )
         Customer.objects.get_or_create(
             branch=branch, phone='934567890',
-            defaults={'name': 'Zilola Ahmedova', 'email': 'zilola@gmail.com'},
+            defaults={'name': 'Zilola Ahmedova'},
         )
 
         agent, _ = Agent.objects.get_or_create(
@@ -179,7 +190,6 @@ class Command(BaseCommand):
             defaults={
                 'phone': '909998877',
                 'supplier': cola_supplier,
-                'supplier_name': cola_supplier.name,
             },
         )
 
@@ -200,7 +210,7 @@ class Command(BaseCommand):
                 'date': '2026-05-21',
                 'time': '12:30',
                 'amount': Decimal('28000'),
-                'method': 'Naqd',
+                'method': Sale.PayMethod.CASH,
                 'cashier_name': 'Akmaljon',
                 'items': [
                     {'name': 'Cola 1L', 'qty': 2, 'price': 10000},

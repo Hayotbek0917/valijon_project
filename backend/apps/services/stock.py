@@ -13,7 +13,7 @@ def draft_reserved_by_product(branch_id, exclude_draft_id=None):
         for item in draft.items or []:
             pid = item.get('id')
             if pid is not None:
-                reserved[int(pid)] += int(item.get('qty') or 0)
+                reserved[str(pid)] += int(item.get('qty') or 0)
     return reserved
 
 
@@ -23,4 +23,4 @@ def get_available_qty(branch_id, product_id, exclude_draft_id=None):
         return 0
     reserved = draft_reserved_by_product(branch_id, exclude_draft_id)
     stock = product.stock or 0
-    return max(0, stock - reserved.get(int(product_id), 0))
+    return max(0, stock - reserved.get(str(product_id), 0))

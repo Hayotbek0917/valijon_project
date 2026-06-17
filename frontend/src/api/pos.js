@@ -14,6 +14,10 @@ import {
   mapCatalogItemFromApi,
   mapCreditAccountFromApi,
   mapWarehouseFromApi,
+  payMethodCode,
+  payMethodLabel,
+  purchaseStatusCode,
+  supplierStatusCode,
 } from './mappers';
 
 export async function loadPosData() {
@@ -67,15 +71,11 @@ export async function createSupplier(branchId, data) {
   const payload = {
     branch: branchId,
     name: data.name,
-    contact: data.contact || '',
     phone: data.phone || '',
-    email: data.email || '',
     address: data.address || '',
-    category: data.category || '',
-    status: 'Faol',
+    status: supplierStatusCode(data.status),
     catalog: (data.catalog || []).map((item) => ({
       name: item.name,
-      category: item.category || data.category || '',
       default_cost: item.defaultCost || 0,
       item_type: item.itemType || '',
       size: item.size || '',
@@ -87,12 +87,11 @@ export async function createSupplier(branchId, data) {
   return mapSupplierFromApi(res);
 }
 
-export async function addCatalogItemToSupplier(supplierId, item, category = '') {
+export async function addCatalogItemToSupplier(supplierId, item) {
   const res = await apiRequest(`/api/v1/suppliers/${supplierId}/catalog`, {
     method: 'POST',
     body: JSON.stringify({
       name: item.name,
-      category: item.category || category || '',
       default_cost: item.defaultCost || 0,
       item_type: item.itemType || '',
       size: item.size || '',
@@ -111,7 +110,7 @@ export async function createPurchaseOrder(branchId, data) {
     supplier_name: data.supplierName,
     date: data.date,
     total: data.total,
-    status: 'Kutilmoqda',
+    status: purchaseStatusCode(data.status || 'Kutilmoqda'),
     lines: data.items.map((item) => ({
       product: item.productId || null,
       catalog_item: item.catalogItemId || null,
@@ -150,7 +149,7 @@ export async function saveProduct(branchId, data, editId) {
     cost: data.cost,
     barcode: data.barcode || '',
     emoji: data.emoji || '📦',
-    is_draft: data.isDraft ?? false,
+    status: data.isDraft ? 'draft' : 'available',
   };
   const path = editId ? `/api/v1/products/${editId}` : '/api/v1/products';
   const method = editId ? 'PATCH' : 'POST';
@@ -178,7 +177,6 @@ export async function createAgent(branchId, data) {
     name: data.name,
     phone: data.phone,
     supplier: data.supplierId || null,
-    supplier_name: data.supplierName || '',
   };
   const res = await apiRequest('/api/v1/agents', { method: 'POST', body: JSON.stringify(payload) });
   return mapAgentFromApi(res);
@@ -188,7 +186,7 @@ export function mapPosDraftFromApi(d) {
   return {
     id: d.id,
     label: d.label,
-    payMethod: d.pay_method || 'Naqd',
+    payMethod: payMethodLabel(d.pay_method),
     items: d.items || [],
     total: Number(d.total ?? 0),
     itemCount: d.item_count ?? 0,
@@ -208,7 +206,7 @@ export async function createPosDraft(branchId, data) {
     body: JSON.stringify({
       branch: branchId,
       label: data.label || '',
-      pay_method: data.payMethod || 'Naqd',
+      pay_method: payMethodCode(data.payMethod),
       items: data.items,
       total: data.total,
     }),
@@ -227,7 +225,7 @@ export async function createSale(branchId, data) {
     date: data.date,
     time: data.time,
     amount: data.amount,
-    method: data.method,
+    method: payMethodCode(data.method),
     cashier_name: data.cashier,
     customer_name: data.customerName || '',
     customer_phone: data.customerPhone || '',

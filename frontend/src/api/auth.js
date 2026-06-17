@@ -21,9 +21,9 @@ export function storeUser(user) {
 }
 
 export async function loginRequest(username, password) {
-  const data = await apiRequest('/auth/login', {
+  const data = await apiRequest('/api/v1/auth/login', {
     method: 'POST',
-    body: JSON.stringify({ username: username.trim(), password }),
+    body: JSON.stringify({ phone: username.trim(), password }),
   });
 
   setTokens(data.access || data.access_token, data.refresh || data.refresh_token);

@@ -34,7 +34,7 @@ def register_catalog_item_as_product(catalog_item, branch, selling_price=None, b
         return product
 
     supplier = catalog_item.supplier
-    category_name = (catalog_item.category or supplier.category or 'Boshqa').strip() or 'Boshqa'
+    category_name = 'Boshqa'
     category, _ = Category.objects.get_or_create(name=category_name)
 
     cost = catalog_item.default_cost or Decimal('0')
@@ -52,7 +52,7 @@ def register_catalog_item_as_product(catalog_item, branch, selling_price=None, b
         selling_price=selling,
         barcode=product_barcode,
         stock=0,
-        is_draft=False,
+        status=Product.Status.AVAILABLE,
     )
     catalog_item.product = product
     if barcode:
