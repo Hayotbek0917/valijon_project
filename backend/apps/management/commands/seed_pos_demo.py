@@ -2,59 +2,16 @@ from decimal import Decimal
 from django.core.management.base import BaseCommand
 from django.db import transaction
 from apps.models import (
-    User,
-    Branch,
-    Category,
-    Product,
-    Supplier,
-    SupplierCatalogItem,
-    Warehouse,
-    InventoryItem,
-    Sale,
-    PurchaseOrder,
-    PurchaseOrderLine,
-    Customer,
-    Agent,
-    AgentOrder,
+    User, Branch, Category, Product, Supplier, SupplierCatalogItem,
+    Warehouse, InventoryItem, Sale, PurchaseOrder, PurchaseOrderLine,
+    Customer, Agent, AgentOrder,
 )
 
 DEMO_USERS = [
-    dict(
-        username="admin",
-        password="123",
-        first_name="Adminstrator",
-        last_name="?",
-        role="admin",
-        phone="901234567",
-        email="admin@market.uz",
-    ),
-    dict(
-        username="boss",
-        password="123",
-        first_name="Rustam",
-        last_name="Boss",
-        role="boss",
-        phone="901111111",
-        email="boss@market.uz",
-    ),
-    dict(
-        username="manager",
-        password="123",
-        first_name="Dilshod",
-        last_name="Manager",
-        role="manager",
-        phone="902222222",
-        email="manager@market.uz",
-    ),
-    dict(
-        username="kassir",
-        password="123",
-        first_name="Akmaljon",
-        last_name="Kassir",
-        role="cashier",
-        phone="907654321",
-        email="akmaljon@market.uz",
-    ),
+    dict(username="admin", password="123", first_name="Adminstrator", last_name="?", role="admin", phone="901234567", email="admin@market.uz"),
+    dict(username="boss", password="123", first_name="Rustam", last_name="Boss", role="boss", phone="901111111", email="boss@market.uz"),
+    dict(username="manager", password="123", first_name="Dilshod", last_name="Manager", role="manager", phone="902222222", email="manager@market.uz"),
+    dict(username="kassir", password="123", first_name="Akmaljon", last_name="Kassir", role="cashier", phone="907654321", email="akmaljon@market.uz"),
 ]
 
 PRODUCTS = [
@@ -68,36 +25,20 @@ PRODUCTS = [
 ]
 
 SUPPLIERS = [
-    dict(
-        name="Coca-Cola Uzbekistan",
-        phone="901112233",
-        address="Toshkent",
-        catalog=[dict(name="Cola 1L", unit="litr")],
-    ),
-    dict(
-        name="PepsiCo UZ",
-        phone="912223344",
-        address="Toshkent",
-        catalog=[dict(name="Pepsi 1L", unit="litr")],
-    ),
-    dict(
-        name="Novda Non",
-        phone="923334455",
-        address="Toshkent",
-        catalog=[dict(name="Non (Tandir)", unit="dona")],
-    ),
+    dict(name="Coca-Cola Uzbekistan", phone="901112233", address="Toshkent", catalog=[dict(name="Cola 1L", unit="litr")]),
+    dict(name="PepsiCo UZ", phone="912223344", address="Toshkent", catalog=[dict(name="Pepsi 1L", unit="litr")]),
+    dict(name="Novda Non", phone="923334455", address="Toshkent", catalog=[dict(name="Non (Tandir)", unit="dona")]),
 ]
 
-
 class Command(BaseCommand):
-    help = "Demo ma'lumotlarni yuklash"
+    help = 'Demo ma\'lumotlarni yuklash'
 
     @transaction.atomic
     def handle(self, *args, **options):
         # 1. Branch yaratish (Bu juda muhim, chunki pastdagi kod bunga tayanadi)
         branch, _ = Branch.objects.get_or_create(
-            name="Market (Oziq-ovqat)",
-            defaults={"address": "Toshkent", "phone": "901234567"},
+            name='Market (Oziq-ovqat)',
+            defaults={'address': 'Toshkent', 'phone': '901234567'},
         )
 
         # 2. Userlarni yaratish
@@ -117,18 +58,10 @@ class Command(BaseCommand):
 
         # 3. Qolgan logikalar
         categories = {}
-        for name in [
-            "Ichimliklar",
-            "Oziq-ovqat",
-            "Sut mahsulotlari",
-            "Shirinliklar",
-            "Kraxmal",
-        ]:
+        for name in ["Ichimliklar", "Oziq-ovqat", "Sut mahsulotlari", "Shirinliklar", "Kraxmal"]:
             categories[name], _ = Category.objects.get_or_create(name=name)
 
-        warehouse, _ = Warehouse.objects.get_or_create(
-            branch=branch, name="Asosiy Oziq-ovqat Ombori"
-        )
+        warehouse, _ = Warehouse.objects.get_or_create(branch=branch, name="Asosiy Oziq-ovqat Ombori")
 
         products_by_name = {}
         for name, cat, price, cost, emoji, barcode, stock in PRODUCTS:
@@ -146,9 +79,7 @@ class Command(BaseCommand):
             )
             products_by_name[name] = product
             if stock > 0:
-                InventoryItem.objects.update_or_create(
-                    product=product, warehouse=warehouse, defaults={"quantity": stock}
-                )
+                InventoryItem.objects.update_or_create(product=product, warehouse=warehouse, defaults={"quantity": stock})
 
         for sdata in SUPPLIERS:
             catalog_items = sdata.pop("catalog")
@@ -169,6 +100,4 @@ class Command(BaseCommand):
                     },
                 )
 
-        self.stdout.write(
-            self.style.SUCCESS("Demo ma'lumotlar muvaffaqiyatli yuklandi!")
-        )
+        self.stdout.write(self.style.SUCCESS("Demo ma'lumotlar muvaffaqiyatli yuklandi!"))
