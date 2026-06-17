@@ -9,6 +9,11 @@ done
 
 echo "PostgreSQL tayyor!"
 
+# --- MANA SHU YERGA YANGI QATOR QO'SHILDI ---
+echo "Migratsiya fayllarini yaratish (makemigrations)..."
+uv run python3 manage.py makemigrations apps --noinput
+# ---------------------------------------------
+
 echo "Migratsiyalar..."
 uv run python3 manage.py migrate --noinput
 
