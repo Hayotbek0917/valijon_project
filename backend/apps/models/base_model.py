@@ -1,8 +1,6 @@
 import uuid
-
 from django.core.validators import RegexValidator
 from django.db.models import Model, UUIDField, DateTimeField
-
 
 uzbek_phone_validator = RegexValidator(
     regex=r"^\d{9}$",
