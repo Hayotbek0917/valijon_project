@@ -14,23 +14,40 @@ class BranchAdmin(admin.ModelAdmin):
 
 @admin.register(User)
 class UserAdmin(BaseUserAdmin):
-    list_display = ('username', 'phone', 'full_name', 'role', 'branch', 'is_active')
-    list_filter = ('role', 'is_active', 'branch')
-    search_fields = ('username', 'phone', 'first_name', 'last_name')
-    ordering = ('-created_at',)
+    # 'username' o'rniga 'phone' ishlatiladi
+    list_display = ("phone", "full_name", "role", "branch", "is_active")
+    list_filter = ("role", "is_active", "branch")
+    search_fields = ("phone", "first_name", "last_name")
+    ordering = ("-created_at",)
+
+    # 'username' ni olib tashlab, 'phone' ni qo'shdik
     fieldsets = (
-        (None, {'fields': ('username', 'password')}),
-        ('Shaxsiy', {'fields': ('first_name', 'last_name', 'phone', 'email', 'avatar')}),
-        ('Rol', {'fields': ('role', 'branch')}),
-        ('Huquq', {'fields': ('is_active', 'is_staff', 'is_superuser', 'groups', 'user_permissions')}),
-    )
-    add_fieldsets = (
-        (None, {
-            'classes': ('wide',),
-            'fields': ('username', 'phone', 'first_name', 'last_name', 'password1', 'password2', 'role'),
-        }),
+        (None, {"fields": ("phone", "password")}),
+        ("Shaxsiy", {"fields": ("first_name", "last_name", "email", "avatar")}),
+        ("Rol", {"fields": ("role", "branch")}),
+        (
+            "Huquq",
+            {
+                "fields": (
+                    "is_active",
+                    "is_staff",
+                    "is_superuser",
+                    "groups",
+                    "user_permissions",
+                )
+            },
+        ),
     )
 
+    add_fieldsets = (
+        (
+            None,
+            {
+                "classes": ("wide",),
+                "fields": ("phone", "first_name", "last_name", "password", "role"),
+            },
+        ),
+    )
 
 admin.site.register(Category)
 admin.site.register(Product)
