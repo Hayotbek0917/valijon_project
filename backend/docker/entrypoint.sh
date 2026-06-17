@@ -9,18 +9,13 @@ done
 
 echo "PostgreSQL tayyor!"
 
-# --- MANA SHU YERGA YANGI QATOR QO'SHILDI ---
 echo "Migratsiya fayllarini yaratish (makemigrations)..."
 uv run python3 manage.py makemigrations apps --noinput
-# ---------------------------------------------
 
 echo "Migratsiyalar..."
 uv run python3 manage.py migrate --noinput
 
-if [ "${SEED_DEMO:-1}" = "1" ]; then
-  echo "Demo ma'lumotlar (seed)..."
-  uv run python3 manage.py seed_pos_demo || true
-fi
+# Xato berayotgan SEED_DEMO qismi olib tashlandi, backend muammosiz ishga tushishi uchun
 
 echo "Backend tayyor."
 exec "$@"
