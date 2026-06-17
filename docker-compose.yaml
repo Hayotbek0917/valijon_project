@@ -2,12 +2,12 @@ services:
   db:
     image: postgres:16-alpine
     environment:
-      POSTGRES_DB: pos_cursor
+      POSTGRES_DB: pos_systemdb
       POSTGRES_PASSWORD: 1
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d pos_cursor"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d pos_systemdb"]
       interval: 3s
       timeout: 5s
       retries: 15

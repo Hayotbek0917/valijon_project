@@ -10,7 +10,6 @@ class Sale(CreatedModel):
         CASH = 'cash', 'Naqd'
         CARD = 'card', 'Karta'
         TRANSFER = 'transfer', "O'tkazma"
-        CREDIT = 'credit', 'Nasiya'
         MIXED = 'mixed', 'Aralash'
 
     branch = ForeignKey('apps.Branch', CASCADE, related_name='sales', verbose_name='Filial', )
@@ -56,3 +55,10 @@ class PosCartDraft(TimeStampedModel):
 
     def __str__(self):
         return f'{self.label} ({self.branch_id})'
+
+
+
+
+
+
+

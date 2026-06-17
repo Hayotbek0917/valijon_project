@@ -17,7 +17,7 @@ def create_sale_with_stock(sale_data, lines_data, exclude_draft_id=None):
         ).first()
         if not product:
             continue
-        needed = int(line['quantity'])
+        needed = int(line['quanbu ni retity'])
         available = max(0, (product.stock or 0) - reserved.get(product.id, 0))
         if needed > available:
             raise ValidationError({

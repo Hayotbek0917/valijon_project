@@ -5,6 +5,9 @@ from rest_framework.exceptions import ValidationError
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.contrib.auth import authenticate
+from rest_framework.fields import CharField
+from rest_framework.serializers import ModelSerializer, Serializer
+
 from apps.models import User
 from apps.utils import normalize_phone
 
@@ -16,9 +19,9 @@ def validate_uzbek_phone(value):
     return normalized
 
 
-class RegisterModelSerializer(serializers.ModelSerializer):
-    password = serializers.CharField(write_only=True)
-    confirm_password = serializers.CharField(write_only=True)
+class RegisterModelSerializer(ModelSerializer):
+    password = CharField(write_only=True)
+    confirm_password = CharField(write_only=True)
 
     class Meta:
         model = User
@@ -52,9 +55,9 @@ class RegisterModelSerializer(serializers.ModelSerializer):
         return User.objects.create_user(**validated_data)
 
 
-class LoginModelSerializer(serializers.Serializer):
-    phone = serializers.CharField()
-    password = serializers.CharField(write_only=True)
+class LoginModelSerializer(Serializer):
+    phone = CharField()
+    password = CharField(write_only=True)
 
     def validate(self, attrs):
         normalized = normalize_phone(attrs.get("phone", ""))

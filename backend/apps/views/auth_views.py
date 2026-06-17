@@ -1,4 +1,5 @@
-from rest_framework.views import APIView
+from drf_spectacular.utils import extend_schema
+from rest_framework.generics import GenericAPIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import AllowAny
@@ -8,11 +9,13 @@ from apps.serializers import RegisterModelSerializer, LoginModelSerializer
 from apps.serializers.pos_serializers import UserStaffSerializer
 
 
-class RegisterView(APIView):
+@extend_schema(tags=["auth"])
+class RegisterView(GenericAPIView):
     permission_classes = [AllowAny]
+    serializer_class = RegisterModelSerializer
 
     def post(self, request):
-        serializer = RegisterModelSerializer(data=request.data)
+        serializer = self.get_serializer(data=request.data)
         if serializer.is_valid():
             serializer.save()
             return Response(
@@ -21,13 +24,13 @@ class RegisterView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-class LoginView(APIView):
+@extend_schema(tags=["auth"])
+class LoginView(GenericAPIView):
     permission_classes = [AllowAny]
+    serializer_class = LoginModelSerializer
 
     def post(self, request):
-        serializer = LoginModelSerializer(
-            data=request.data, context={"request": request}
-        )
+        serializer = self.get_serializer(data=request.data)
         if serializer.is_valid():
             user = serializer.validated_data["user"]
             refresh = RefreshToken.for_user(user)

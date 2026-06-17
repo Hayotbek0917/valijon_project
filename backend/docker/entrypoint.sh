@@ -2,34 +2,20 @@
 set -e
 
 echo "PostgreSQL kutilyapti..."
-until uv run python - <<'PY'
-import os
-import sys
-import psycopg2
-
-try:
-    psycopg2.connect(
-        dbname=os.environ.get("POSTGRES_DATABASE", "pos_cursor"),
-        user=os.environ.get("POSTGRES_USER", "postgres"),
-        password=os.environ.get("POSTGRES_PASSWORD", "1"),
-        host=os.environ.get("POSTGRES_HOST", "db"),
-        port=os.environ.get("POSTGRES_PORT", "5432"),
-    ).close()
-except Exception as exc:
-    print(exc, file=sys.stderr)
-    sys.exit(1)
-PY
-do
+until nc -z "${POSTGRES_HOST:-postgres.railway.internal}" "${POSTGRES_PORT:-5432}"; do
+  echo "Baza hali tayyor emas, kutilmoqda..."
   sleep 1
 done
 
-echo "Migratsiyalar..."
-uv run python manage.py migrate --noinput
+echo "PostgreSQL tayyor!"
 
-if [ "${SEED_DEMO:-1}" = "1" ]; then
-  echo "Demo ma'lumotlar (seed)..."
-  uv run python manage.py seed_pos_demo || true
-fi
+echo "Migratsiya fayllarini yaratish (makemigrations)..."
+uv run python3 manage.py makemigrations apps --noinput
+
+echo "Migratsiyalar..."
+uv run python3 manage.py migrate --noinput
+
+# Xato berayotgan SEED_DEMO qismi olib tashlandi, backend muammosiz ishga tushishi uchun
 
 echo "Backend tayyor."
 exec "$@"
