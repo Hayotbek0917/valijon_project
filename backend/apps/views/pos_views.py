@@ -322,7 +322,7 @@ class StaffCreateAPIView(GenericAPIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        if request.user.role not in (User.Role.ADMIN, User.Role.BOSS):
+        if request.user.role not in (User.Role.ADMIN, User.Role.OWNER):
             return Response(
                 {"detail": "Faqat admin yoki boss xodim qo'sha oladi"},
                 status=status.HTTP_403_FORBIDDEN,

@@ -14,6 +14,8 @@ import {
   mapCatalogItemFromApi,
   mapCreditAccountFromApi,
   mapWarehouseFromApi,
+  payMethodCode,
+  payMethodLabel,
 } from './mappers';
 
 export async function loadPosData() {
@@ -188,7 +190,7 @@ export function mapPosDraftFromApi(d) {
   return {
     id: d.id,
     label: d.label,
-    payMethod: d.pay_method || 'Naqd',
+    payMethod: payMethodLabel(d.pay_method),
     items: d.items || [],
     total: Number(d.total ?? 0),
     itemCount: d.item_count ?? 0,
@@ -208,7 +210,7 @@ export async function createPosDraft(branchId, data) {
     body: JSON.stringify({
       branch: branchId,
       label: data.label || '',
-      pay_method: data.payMethod || 'Naqd',
+      pay_method: payMethodCode(data.payMethod),
       items: data.items,
       total: data.total,
     }),
@@ -227,7 +229,7 @@ export async function createSale(branchId, data) {
     date: data.date,
     time: data.time,
     amount: data.amount,
-    method: data.method,
+    method: payMethodCode(data.method),
     cashier_name: data.cashier,
     customer_name: data.customerName || '',
     customer_phone: data.customerPhone || '',

@@ -153,7 +153,7 @@ class PosCartDraftSerializer(ModelSerializer):
             if pid is None:
                 continue
             qty = int(item.get("qty") or 0)
-            available = get_available_qty(branch.id, int(pid))
+            available = get_available_qty(branch.id, pid)
             if qty > available:
                 name = item.get("name") or f"#{pid}"
                 raise ValidationError(
@@ -232,7 +232,7 @@ class SaleSerializer(ModelSerializer):
             validated_data, lines_data, exclude_draft_id=pos_draft_id
         )
 
-        if method == "Nasiya":
+        if method == Sale.PayMethod.CREDIT:
             record_credit_charge(
                 sale.branch,
                 sale.amount,
@@ -362,12 +362,6 @@ class AgentSerializer(ModelSerializer):
             "supplier_id",
         ]
 
-    def create(self, validated_data):
-        supplier = validated_data.get("supplier")
-        if supplier and not validated_data.get("supplier_name"):
-            validated_data["supplier_name"] = supplier.name
-        return super().create(validated_data)
-
 
 class AgentOrderSerializer(ModelSerializer):
     business_id = UUIDField(source="branch_id", read_only=True)
@@ -425,10 +419,12 @@ class StaffCreateSerializer(Serializer):
 
     def create(self, validated_data):
         role = validated_data["role"]
+        if role == "boss":
+            role = User.Role.OWNER
         branch_id = validated_data.pop("branch", None)
 
         branch = Branch.objects.filter(id=branch_id).first()
-        if not branch and role in ["manager", "cashier"]:
+        if not branch and role in [User.Role.MANAGER, User.Role.CASHIER]:
             branch = Branch.objects.first()
 
         phone = (

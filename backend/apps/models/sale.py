@@ -23,6 +23,7 @@ class Sale(CreatedModel):
         CASH = "cash", "Naqd"
         CARD = "card", "Karta"
         TRANSFER = "transfer", "O'tkazma"
+        CREDIT = "credit", "Nasiya"
         MIXED = "mixed", "Aralash"
 
     branch = ForeignKey("apps.Branch", CASCADE, related_name="sales")

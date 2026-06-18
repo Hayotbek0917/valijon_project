@@ -9,4 +9,4 @@ class Command(BaseCommand):
     def handle(self, *args, **kwargs):
         threshold = timezone.now() - timedelta(days=1)
         count, _ = PosCartDraft.objects.filter(updated_at__lt=threshold).delete()
-        self.stdout.write(self.style.SUCCESS(f'{count} ta eski qoralama muvaffaqiyatli o\'chirildi.'))
+        self.stdout.write(self.style.SUCCESS(f"{count} ta eski qoralama muvaffaqiyatli o'chirildi."))
