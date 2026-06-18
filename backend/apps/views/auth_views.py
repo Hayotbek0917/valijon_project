@@ -37,7 +37,13 @@ class LoginView(GenericAPIView):
                 {
                     "refresh": str(refresh),
                     "access": str(refresh.access_token),
+                    "user": {
+                        "id": str(user.id),
+                        "role": user.role,
+                        "first_name": user.first_name,
+                        "phone": user.phone,
+                    },
                 },
                 status=status.HTTP_200_OK,
             )
-        return Response(serializer.errors, status=status.HTTP_401_UNAUTHORIZED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
