@@ -1,4 +1,4 @@
-from django.core.exceptions import ValidationError
+from django.conf import settings
 from django.db.models import (
     TextChoices, ForeignKey, CASCADE, CharField, SET_NULL,
     DateField, DecimalField, PositiveIntegerField, Q
@@ -63,9 +63,9 @@ class PurchaseOrderLine(BaseModel):
     unit = CharField(max_length=20, blank=True, default="ta", verbose_name="O'lchov birligi")
     cost_price = DecimalField(max_digits=12, decimal_places=2, verbose_name="Narx")
 
-    @property
-    def subtotal(self):
-        return self.quantity * self.cost_price
+    class Meta:
+        verbose_name = 'Buyurtma qatori'
+        verbose_name_plural = 'Buyurtma qatorlari'
 
 
     def __str__(self):

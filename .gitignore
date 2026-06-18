@@ -1,11 +1,14 @@
+### VirtualEnv template
+# Virtualenv
+# http://iamzed.com/2009/05/07/a-primer-on-virtualenv/
+.Python
+[Bb]in
+[Ii]nclude
+[Ll]ib
+[Ll]ib64
+[Ll]ocal
+[Ss]cripts
+pyvenv.cfg
 .venv
-.idea
-.env
-node_modules
+pip-selfcheck.json
 
-
-README.md
-
-ctrl + k            - commit
-ctrl + t            - pull
-ctrl + shift + k    - push

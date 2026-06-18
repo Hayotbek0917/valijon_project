@@ -12,6 +12,8 @@ from django.db.models import (
 from django.db.models.constraints import UniqueConstraint
 from apps.models.base_model import TimeStampedModel, BaseModel
 
+class Category(TimeStampedModel):
+    """Mahsulot kategoriyasi — Ichimliklar, Shirinliklar va hokazo."""
 
 class Category(BaseModel):
     name = CharField(max_length=255, unique=True, verbose_name="Kategoriya nomi")
@@ -61,7 +63,7 @@ class Product(TimeStampedModel):
         return self.selling_price - self.base_price
 
     @property
-    def stock_status(self):
+    def status(self):
         if self.stock > 0:
             return "Yetarli"
         return "Tugagan"

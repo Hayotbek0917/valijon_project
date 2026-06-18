@@ -1,17 +1,6 @@
-from django.db.models import (
-    TextChoices,
-    ForeignKey,
-    CASCADE,
-    CharField,
-    DateField,
-    DecimalField,
-    SET_NULL,
-    JSONField,
-    PositiveIntegerField,
-    Q,
-)
-from django.db.models.constraints import UniqueConstraint
-from django.db.models.fields import TimeField
+from django.db import models
+from django.db.models import TextChoices, ForeignKey, CASCADE, CharField, DateField, DecimalField, SET_NULL, JSONField, \
+    PositiveIntegerField
 
 from apps.models import CreatedModel, TimeStampedModel
 
@@ -46,14 +35,9 @@ class Sale(CreatedModel):
     items = JSONField(default=list, verbose_name="Mahsulotlar")
 
     class Meta:
-        ordering = ["-date", "-created_at"]
-        constraints = [
-            UniqueConstraint(
-                fields=["external_id"],
-                condition=Q(external_id__gt=""),
-                name="unique_sale_external_id_when_set",
-            ),
-        ]
+        verbose_name = 'Sotuv'
+        verbose_name_plural = 'Sotuvlar'
+        ordering = ['-date', '-external_id']
 
     def __str__(self):
         return self.external_id if self.external_id else str(self.id)

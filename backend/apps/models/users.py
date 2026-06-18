@@ -23,8 +23,6 @@ class UserManager(BaseUserManager):
         extra_fields.setdefault("role", User.Role.OWNER)
         return self.create_user(phone, password, **extra_fields)
 
-
-class User(AbstractBaseUser, PermissionsMixin):
     class Role(TextChoices):
         OWNER = "owner", "Boss"
         MANAGER = "manager", "Manager"
@@ -58,7 +56,9 @@ class User(AbstractBaseUser, PermissionsMixin):
     REQUIRED_FIELDS = ["first_name"]
 
     class Meta:
-        ordering = ["-created_at"]
+        verbose_name = 'Foydalanuvchi'
+        verbose_name_plural = 'Foydalanuvchilar'
+        ordering = ['-created_at']
 
     def __str__(self) -> str:
         return f"{self.full_name} ({self.get_role_display()})"

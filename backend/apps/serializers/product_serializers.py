@@ -1,6 +1,5 @@
-import re
-
 from rest_framework import serializers
+
 from apps.models import Branch, Category, Product
 from apps.serializers.choice_utils import normalize_choice_label
 
@@ -8,10 +7,13 @@ from apps.serializers.choice_utils import normalize_choice_label
 class CategorySerializer(serializers.ModelSerializer):
     class Meta:
         model = Category
-        fields = ['id', 'name']
+        fields = ['id', 'name', 'created_at']
+        read_only_fields = ['created_at']
 
 
 class ProductSerializer(serializers.ModelSerializer):
+    """Mahsulot API — is_draft Product da emas, faqat PosCartDraft da."""
+
     category = serializers.SlugRelatedField(
         slug_field='name', queryset=Category.objects.all(),
     )
@@ -34,11 +36,10 @@ class ProductSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'name', 'barcode', 'category', 'category_name',
             'branch', 'business_id', 'selling_price', 'base_price', 'price', 'cost',
-            'emoji', 'image', 'image_url', 'is_draft', 'profit', 'stock',
-            'status', 'status_display',
+            'emoji', 'image', 'image_url', 'size', 'unit', 'profit', 'stock', 'status',
             'created_at', 'updated_at',
         ]
-        read_only_fields = ('created_at', 'updated_at', 'image')
+        read_only_fields = ('created_at', 'updated_at', 'image', 'image_url')
 
     def get_image_url(self, obj):
         if not obj.image:
@@ -51,8 +52,8 @@ class ProductSerializer(serializers.ModelSerializer):
     def get_profit(self, obj):
         return obj.profit
 
-    def get_is_draft(self, obj):
-        return obj.status == Product.Status.DRAFT
+    def get_status(self, obj):
+        return obj.status
 
     def validate_status(self, value):
         return normalize_choice_label(
@@ -61,17 +62,13 @@ class ProductSerializer(serializers.ModelSerializer):
 
 
 class BranchModelSerializer(serializers.ModelSerializer):
+    phone = UzPhoneField(required=False, allow_blank=True, allow_null=True)
+
     class Meta:
         model = Branch
-        fields = ('id', 'name', 'address', 'phone', 'created_at')
+        fields = ('id', 'name', 'address', 'phone', 'created_at', 'updated_at')
         extra_kwargs = {
             'id': {'read_only': True},
-            'created_at': {'read_only': True}
+            'created_at': {'read_only': True},
+            'updated_at': {'read_only': True},
         }
-
-    def validate_phone(self, value):
-        if value and not re.fullmatch(r'\d{9}', value):
-            raise serializers.ValidationError(
-                "Telefon raqam 901234567 formatida bo'lishi kerak (9 ta raqam, '+' va boshqa belgilarsiz)."
-            )
-        return value

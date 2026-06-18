@@ -1,2 +1,0 @@
-from apps.serializers.auth_serializers import RegisterModelSerializer, LoginModelSerializer
-

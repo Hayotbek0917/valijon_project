@@ -26,6 +26,19 @@ def receive_purchase_order(order, warehouse, receipt_date, line_receipts):
         if not product and catalog_item:
             product = catalog_item.product
 
+        if product:
+            line_size = (line.size or (catalog_item.size if catalog_item else '') or '').strip()
+            line_unit = (line.unit or (catalog_item.unit if catalog_item else '') or 'dona').strip() or 'dona'
+            update_fields = []
+            if line_size and product.size != line_size:
+                product.size = line_size
+                update_fields.append('size')
+            if line_unit and product.unit != line_unit:
+                product.unit = line_unit
+                update_fields.append('unit')
+            if update_fields:
+                product.save(update_fields=update_fields)
+
         if not product:
             category_name = 'Boshqa'
             category, _ = Category.objects.get_or_create(name=category_name)
@@ -35,6 +48,8 @@ def receive_purchase_order(order, warehouse, receipt_date, line_receipts):
                 (catalog_item.barcode if catalog_item else '').strip()
                 or f'PO-{order.id}-{line.id}'
             )
+            line_size = (line.size or (catalog_item.size if catalog_item else '') or '').strip()
+            line_unit = (line.unit or (catalog_item.unit if catalog_item else '') or 'dona').strip() or 'dona'
             product = Product.objects.create(
                 name=line.name,
                 category=category,
@@ -42,6 +57,8 @@ def receive_purchase_order(order, warehouse, receipt_date, line_receipts):
                 base_price=cost,
                 selling_price=selling,
                 barcode=product_barcode,
+                size=line_size,
+                unit=line_unit,
                 stock=0,
             )
             line.product = product

@@ -26,6 +26,14 @@ def register_catalog_item_as_product(catalog_item, branch, selling_price=None, b
         if selling_price is not None:
             product.selling_price = Decimal(str(selling_price))
             update_fields.append('selling_price')
+        catalog_size = (catalog_item.size or '').strip()
+        catalog_unit = (catalog_item.unit or 'dona').strip() or 'dona'
+        if catalog_size and product.size != catalog_size:
+            product.size = catalog_size
+            update_fields.append('size')
+        if catalog_unit and product.unit != catalog_unit:
+            product.unit = catalog_unit
+            update_fields.append('unit')
         if update_fields:
             product.save(update_fields=update_fields)
         if barcode and catalog_item.barcode != barcode.strip():
@@ -51,6 +59,8 @@ def register_catalog_item_as_product(catalog_item, branch, selling_price=None, b
         base_price=cost,
         selling_price=selling,
         barcode=product_barcode,
+        size=(catalog_item.size or '').strip(),
+        unit=(catalog_item.unit or 'dona').strip() or 'dona',
         stock=0,
         status=Product.Status.AVAILABLE,
     )

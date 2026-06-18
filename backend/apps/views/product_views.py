@@ -8,6 +8,11 @@ from apps.serializers.product_serializers import BranchModelSerializer
 
 @extend_schema(tags=['Branch'])
 class BranchModelViewSet(ModelViewSet):
+    """Filiallar ro'yxati — UUID alohida primary key."""
+
     queryset = Branch.objects.all()
     serializer_class = BranchModelSerializer
     permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return Branch.objects.all().order_by('name')

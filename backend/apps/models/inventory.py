@@ -1,7 +1,11 @@
 from django.db.models import ForeignKey, CASCADE, CharField, PositiveIntegerField
 from django.db.models.constraints import UniqueConstraint
+
+from apps.models import TimeStampedModel
 from apps.models.base_model import BaseModel
 
+class Warehouse(TimeStampedModel):
+    """Ombor / sklad — filial ichidagi saqlash joyi."""
 
 class Warehouse(BaseModel):
     branch = ForeignKey("apps.Branch", CASCADE, related_name="warehouses")
@@ -21,6 +25,8 @@ class InventoryItem(BaseModel):
     quantity = PositiveIntegerField(default=0, verbose_name="Miqdor")
 
     class Meta:
+        verbose_name = 'Ombor qoldig\'i'
+        verbose_name_plural = 'Ombor qoldiqlari'
         constraints = [
             UniqueConstraint(
                 fields=["product", "warehouse"],

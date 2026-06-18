@@ -6,7 +6,8 @@ from rest_framework.permissions import AllowAny
 from rest_framework.throttling import ScopedRateThrottle
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from apps.serializers import RegisterModelSerializer, LoginModelSerializer
+from apps.models import User
+from apps.serializers.auth_serializers import RegisterModelSerializer, LoginModelSerializer
 
 
 @extend_schema(tags=["auth"])

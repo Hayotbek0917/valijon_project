@@ -16,12 +16,20 @@ import {
   FormControl, InputLabel, Select, MenuItem, Alert, Collapse, IconButton, Autocomplete,
 } from '@mui/material';
 import { PRICE_FILTER_OPTIONS, matchesPriceFilter } from '../config/priceFilters';
-import { formatCurrency } from '../utils/format';
+import { formatCurrency, computeProductProfit, formatSignedCurrency, profitStyle } from '../utils/format';
 
 const stockStatus = (qty) => {
   if (qty === 0) return { label: 'Tugagan', bg: '#fee2e2', color: '#ef4444' };
   if (qty <= 5) return { label: 'Kam', bg: '#fff7ed', color: '#f97316' };
   return { label: 'Yetarli', bg: '#f0fdf4', color: '#22c55e' };
+};
+
+const profitBadge = (price, cost) => {
+  const profit = computeProductProfit(price, cost);
+  const label = formatSignedCurrency(profit);
+  if (profit < 0) return { label, bg: '#fee2e2', color: '#ef4444' };
+  if (profit > 0) return { label, bg: '#f0fdf4', color: '#22c55e' };
+  return { label, bg: '#f3f4f6', color: '#6b7280' };
 };
 
 export default function Products() {
@@ -455,6 +463,7 @@ export default function Products() {
                 filtered.map((p, i) => {
                   const stock = p.stock;
                   const status = stockStatus(stock);
+                  const profitInfo = profitBadge(p.price, p.cost);
                   return (
                     <TableRow
                       key={p.id}
@@ -493,7 +502,18 @@ export default function Products() {
                       <TableCell sx={{ fontWeight: 600, color: '#4361ee' }}>{formatCurrency(p.price)}</TableCell>
                       {showCost && <TableCell sx={{ color: '#6b7280' }}>{formatCurrency(p.cost)}</TableCell>}
                       {showCost && (
-                        <TableCell sx={{ fontWeight: 600, color: '#22c55e' }}>+{formatCurrency(p.price - p.cost)}</TableCell>
+                        <TableCell>
+                          <Chip
+                            label={profitInfo.label}
+                            size="small"
+                            sx={{
+                              fontSize: 11,
+                              fontWeight: 700,
+                              bgcolor: profitInfo.bg,
+                              color: profitInfo.color,
+                            }}
+                          />
+                        </TableCell>
                       )}
                       <TableCell sx={{ fontWeight: 600 }}>{stock} ta</TableCell>
                       <TableCell>
@@ -566,6 +586,23 @@ export default function Products() {
               sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5 } }}
             />
           </div>
+
+          {showCost && form.price !== '' && form.cost !== '' && (
+            <Alert
+              severity={computeProductProfit(form.price, form.cost) >= 0 ? 'success' : 'warning'}
+              sx={{ borderRadius: 1.5, py: 0.5 }}
+            >
+              Foyda (sotuv − tannarx):{' '}
+              <strong style={profitStyle(computeProductProfit(form.price, form.cost))}>
+                {formatSignedCurrency(computeProductProfit(form.price, form.cost))}
+              </strong>
+              {computeProductProfit(form.price, form.cost) < 0 && (
+                <span className="block text-xs mt-0.5 opacity-90">
+                  Sotuv narxi tannarxdan past — har sotuvda zarar.
+                </span>
+              )}
+            </Alert>
+          )}
 
           <div className="grid grid-cols-2 gap-4">
             <TextField

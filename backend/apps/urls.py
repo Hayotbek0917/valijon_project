@@ -1,9 +1,11 @@
 from django.urls import path, include
 from rest_framework.routers import SimpleRouter
-from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
+from rest_framework_simplejwt.views import TokenRefreshView, TokenObtainPairView
 
-from .views import (
+from apps.views import (
     BranchModelViewSet,
+    RegisterModelViewSet,
+    LoginAPIView,
     CategoryViewSet,
     ProductViewSet,
     SupplierViewSet,
@@ -12,37 +14,38 @@ from .views import (
     SaleViewSet,
     PosCartDraftViewSet,
     PurchaseOrderViewSet,
-    CustomerViewSet,
-    AgentViewSet,
     AgentOrderViewSet,
-    DebtCustomersViewSet,
+    CreditAccountViewSet,
     UserStaffViewSet,
     StaffCreateAPIView,
-    RegisterView,
-    LoginView,
 )
 
-router = SimpleRouter(trailing_slash=False)
-router.register("branches", BranchModelViewSet, basename="branch")
-router.register("categories", CategoryViewSet, basename="category")
-router.register("products", ProductViewSet, basename="product")
-router.register("suppliers", SupplierViewSet, basename="supplier")
-router.register("warehouses", WarehouseViewSet, basename="warehouse")
-router.register("inventory", InventoryViewSet, basename="inventory")
-router.register("sales", SaleViewSet, basename="sale")
-router.register("pos-drafts", PosCartDraftViewSet, basename="pos-draft")
-router.register("purchase-orders", PurchaseOrderViewSet, basename="purchase-order")
-router.register("customers", CustomerViewSet, basename="customer")
-router.register("agents", AgentViewSet, basename="agent")
-router.register("agent-orders", AgentOrderViewSet, basename="agent-order")
-router.register("credit-accounts", DebtCustomersViewSet, basename="credit-account")
-router.register("users", UserStaffViewSet, basename="staff-user")
+api_router = SimpleRouter(trailing_slash=False)
+api_router.register('branches', BranchModelViewSet, basename='branch')
+api_router.register('categories', CategoryViewSet, basename='category')
+api_router.register('products', ProductViewSet, basename='product')
+api_router.register('suppliers', SupplierViewSet, basename='supplier')
+api_router.register('warehouses', WarehouseViewSet, basename='warehouse')
+api_router.register('inventory', InventoryViewSet, basename='inventory')
+api_router.register('sales', SaleViewSet, basename='sale')
+api_router.register('pos-drafts', PosCartDraftViewSet, basename='pos-draft')
+api_router.register('purchase-orders', PurchaseOrderViewSet, basename='purchase-order')
+api_router.register('agent-orders', AgentOrderViewSet, basename='agent-order')
+api_router.register('credit-accounts', CreditAccountViewSet, basename='credit-account')
+api_router.register('users', UserStaffViewSet, basename='staff-user')
+
+auth_router = SimpleRouter(trailing_slash=False)
+auth_router.register('register', RegisterModelViewSet, basename='auth-register')
 
 urlpatterns = [
-    path("auth/register", RegisterView.as_view(), name="register"),
-    path("auth/login", LoginView.as_view(), name="login"),
-    path("users/create", StaffCreateAPIView.as_view(), name="staff-create"),
-    path("", include(router.urls)),
-    path("token", TokenObtainPairView.as_view(), name="token_obtain_pair"),
-    path("token/refresh", TokenRefreshView.as_view(), name="token_refresh"),
+    path('api/v1/', include([
+        path('users/create', StaffCreateAPIView.as_view(), name='staff-create'),
+        path('', include(api_router.urls)),
+        path('token', TokenObtainPairView.as_view(), name='token_obtain_pair'),
+        path('token/refresh', TokenRefreshView.as_view(), name='token_refresh'),
+    ])),
+    path('auth/', include([
+        path('', include(auth_router.urls)),
+        path('login', LoginAPIView.as_view()),
+    ])),
 ]
