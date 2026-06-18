@@ -20,7 +20,7 @@ def validate_uzbek_phone(value):
 
 
 class RegisterModelSerializer(ModelSerializer):
-    email = serializers.EmailField(required=False)
+    email = serializers.EmailField(required=False, allow_null=True, allow_blank=True)
     password = CharField(write_only=True)
     confirm_password = CharField(write_only=True)
 
@@ -40,6 +40,11 @@ class RegisterModelSerializer(ModelSerializer):
         if User.objects.filter(phone=normalized).exists():
             raise ValidationError("Bu raqam allaqachon ro'yxatdan o'tgan.")
         return normalized
+
+    def validate_email(self, value):
+        if not value:
+            return None
+        return value
 
     def validate(self, attrs):
         if attrs.get("password") != attrs.get("confirm_password"):

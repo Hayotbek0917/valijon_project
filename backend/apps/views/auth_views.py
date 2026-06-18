@@ -3,6 +3,7 @@ from rest_framework.generics import GenericAPIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import AllowAny
+from rest_framework.throttling import ScopedRateThrottle
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from apps.serializers import RegisterModelSerializer, LoginModelSerializer
@@ -11,6 +12,8 @@ from apps.serializers import RegisterModelSerializer, LoginModelSerializer
 @extend_schema(tags=["auth"])
 class RegisterView(GenericAPIView):
     permission_classes = [AllowAny]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "auth"
     serializer_class = RegisterModelSerializer
 
     def post(self, request):
@@ -26,6 +29,8 @@ class RegisterView(GenericAPIView):
 @extend_schema(tags=["auth"])
 class LoginView(GenericAPIView):
     permission_classes = [AllowAny]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "auth"
     serializer_class = LoginModelSerializer
 
     def post(self, request):
