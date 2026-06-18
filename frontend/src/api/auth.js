@@ -20,10 +20,10 @@ export function storeUser(user) {
   }
 }
 
-export async function loginRequest(username, password) {
+export async function loginRequest({ phone, password }) {
   const data = await apiRequest('/auth/login', {
     method: 'POST',
-    body: JSON.stringify({ username: username.trim(), password }),
+    body: JSON.stringify({ phone: phone.trim(), password }),
   });
 
   setTokens(data.access || data.access_token, data.refresh || data.refresh_token);
@@ -38,12 +38,16 @@ export function logoutRequest() {
 }
 
 export async function createStaffUser(data) {
+  const nameParts = (data.name || '').trim().split(/\s+/);
+  const firstName = nameParts[0] || '';
+  const lastName = nameParts.slice(1).join(' ') || '';
+
   const res = await apiRequest('/api/v1/users/create', {
     method: 'POST',
     body: JSON.stringify({
-      username: data.username,
+      first_name: firstName,
+      last_name: lastName,
       password: data.password,
-      name: data.name,
       role: data.role,
       phone: data.phone || '',
     }),
