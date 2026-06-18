@@ -10,7 +10,6 @@ from rest_framework.fields import (
     BooleanField,
     IntegerField,
     DateField,
-    ChoiceField,
 )
 
 from apps.models import (
@@ -31,6 +30,7 @@ from apps.models import (
     CreditTransaction,
     Branch,
 )
+from apps.serializers.choice_utils import normalize_choice_label
 from apps.services import create_sale_with_stock, record_credit_charge
 
 
@@ -59,6 +59,7 @@ class SupplierCatalogItemSerializer(ModelSerializer):
 class SupplierSerializer(ModelSerializer):
     business_id = UUIDField(source="branch_id", read_only=True)
     catalog = SupplierCatalogItemSerializer(many=True, required=False)
+    status = CharField(required=False)
 
     class Meta:
         model = Supplier
@@ -73,6 +74,11 @@ class SupplierSerializer(ModelSerializer):
             "status",
             "catalog",
         ]
+
+    def validate_status(self, value):
+        return normalize_choice_label(
+            value, Supplier.Status.choices, "Holat noto'g'ri"
+        )
 
     def create(self, validated_data):
         catalog_data = validated_data.pop("catalog", [])
@@ -116,6 +122,7 @@ class PosCartDraftSerializer(ModelSerializer):
     business_id = UUIDField(source="branch_id", read_only=True)
     cashier_id = UUIDField(read_only=True)
     item_count = SerializerMethodField()
+    pay_method = CharField(required=False)
 
     class Meta:
         model = PosCartDraft
@@ -137,6 +144,11 @@ class PosCartDraftSerializer(ModelSerializer):
 
     def get_item_count(self, obj):
         return sum(int(i.get("qty", 0)) for i in (obj.items or []))
+
+    def validate_pay_method(self, value):
+        return normalize_choice_label(
+            value, Sale.PayMethod.choices, "To'lov turi noto'g'ri"
+        )
 
     def validate_items(self, value):
         if not value:
@@ -182,6 +194,7 @@ class SaleSerializer(ModelSerializer):
     lines = SaleLineSerializer(many=True, required=False)
     business_id = UUIDField(source="branch_id", read_only=True)
     pos_draft_id = UUIDField(required=False, allow_null=True, write_only=True)
+    method = CharField(required=False)
     customer_name = CharField(required=False, allow_blank=True, write_only=True)
     customer_phone = CharField(required=False, allow_blank=True, write_only=True)
     credit_account_id = UUIDField(required=False, allow_null=True, write_only=True)
@@ -248,6 +261,11 @@ class SaleSerializer(ModelSerializer):
 
         return sale
 
+    def validate_method(self, value):
+        return normalize_choice_label(
+            value, Sale.PayMethod.choices, "To'lov turi noto'g'ri"
+        )
+
 
 class CreditTransactionSerializer(ModelSerializer):
     class Meta:
@@ -302,6 +320,7 @@ class PurchaseOrderSerializer(ModelSerializer):
     lines = PurchaseOrderLineSerializer(many=True, required=False)
     business_id = UUIDField(source="branch_id", read_only=True)
     supplier_id = UUIDField(allow_null=True, required=False)
+    status = CharField(required=False)
 
     class Meta:
         model = PurchaseOrder
@@ -326,6 +345,11 @@ class PurchaseOrderSerializer(ModelSerializer):
         for line in lines_data:
             PurchaseOrderLine.objects.create(order=order, **line)
         return order
+
+    def validate_status(self, value):
+        return normalize_choice_label(
+            value, PurchaseOrder.Status.choices, "Holat noto'g'ri"
+        )
 
 
 class PurchaseReceiveLineSerializer(Serializer):
@@ -368,6 +392,7 @@ class AgentSerializer(ModelSerializer):
 class AgentOrderSerializer(ModelSerializer):
     business_id = UUIDField(source="branch_id", read_only=True)
     agent_id = UUIDField(read_only=True)
+    status = CharField(required=False)
 
     class Meta:
         model = AgentOrder
@@ -390,6 +415,11 @@ class AgentOrderSerializer(ModelSerializer):
         if agent and not validated_data.get("agent_name"):
             validated_data["agent_name"] = agent.name
         return super().create(validated_data)
+
+    def validate_status(self, value):
+        return normalize_choice_label(
+            value, AgentOrder.Status.choices, "Holat noto'g'ri"
+        )
 
 
 class UserStaffSerializer(ModelSerializer):
@@ -416,13 +446,31 @@ class StaffCreateSerializer(Serializer):
     last_name = CharField()
     phone = CharField(required=False, allow_blank=True)
     password = CharField(write_only=True)
-    role = ChoiceField(choices=["boss", "manager", "cashier"])
+    role = CharField()
     branch = UUIDField(required=False, allow_null=True)
+
+    def validate_role(self, value):
+        labels = {
+            "boss": User.Role.OWNER,
+            "owner": User.Role.OWNER,
+            "manager": User.Role.MANAGER,
+            "cashier": User.Role.CASHIER,
+            "kassir": User.Role.CASHIER,
+        }
+        role = labels.get((value or "").strip().casefold())
+        if role:
+            return role
+        allowed_roles = [
+            (User.Role.OWNER, "Boss"),
+            (User.Role.MANAGER, "Manager"),
+            (User.Role.CASHIER, "Cashier"),
+        ]
+        return normalize_choice_label(
+            value, allowed_roles, "Xodim roli noto'g'ri"
+        )
 
     def create(self, validated_data):
         role = validated_data["role"]
-        if role == "boss":
-            role = User.Role.OWNER
         branch_id = validated_data.pop("branch", None)
 
         branch = Branch.objects.filter(id=branch_id).first()

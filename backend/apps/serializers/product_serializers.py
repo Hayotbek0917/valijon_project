@@ -2,6 +2,7 @@ import re
 
 from rest_framework import serializers
 from apps.models import Branch, Category, Product
+from apps.serializers.choice_utils import normalize_choice_label
 
 
 class CategorySerializer(serializers.ModelSerializer):
@@ -22,6 +23,7 @@ class ProductSerializer(serializers.ModelSerializer):
         source='base_price', max_digits=12, decimal_places=2, required=False,
     )
     profit = serializers.SerializerMethodField()
+    status = serializers.CharField(required=False)
     status_display = serializers.CharField(source='get_status_display', read_only=True)
     is_draft = serializers.SerializerMethodField()
     business_id = serializers.UUIDField(source='branch_id', read_only=True, allow_null=True)
@@ -51,6 +53,11 @@ class ProductSerializer(serializers.ModelSerializer):
 
     def get_is_draft(self, obj):
         return obj.status == Product.Status.DRAFT
+
+    def validate_status(self, value):
+        return normalize_choice_label(
+            value, Product.Status.choices, "Holat noto'g'ri"
+        )
 
 
 class BranchModelSerializer(serializers.ModelSerializer):
