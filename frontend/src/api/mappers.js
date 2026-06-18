@@ -62,12 +62,17 @@ export function payMethodCode(value) {
   return labels[value] || value || 'cash';
 }
 
+export function normalizeRole(role) {
+  if (role === 'owner') return 'boss';
+  return role;
+}
+
 export function mapUserFromApi(u) {
   return {
     id: u.id,
     username: u.username || u.phone || '',
     name: u.name || `${u.first_name || ''} ${u.last_name || ''}`.trim(),
-    role: u.role,
+    role: normalizeRole(u.role),
     active: u.active ?? u.is_active ?? true,
     branch: u.branch ?? null,
   };

@@ -419,10 +419,12 @@ class StaffCreateSerializer(Serializer):
 
     def create(self, validated_data):
         role = validated_data["role"]
+        if role == "boss":
+            role = User.Role.OWNER
         branch_id = validated_data.pop("branch", None)
 
         branch = Branch.objects.filter(id=branch_id).first()
-        if not branch and role in ["manager", "cashier"]:
+        if not branch and role in [User.Role.MANAGER, User.Role.CASHIER]:
             branch = Branch.objects.first()
 
         phone = (
