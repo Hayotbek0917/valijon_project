@@ -1,123 +1,84 @@
-from django.contrib.auth.models import (
-    AbstractBaseUser,
-    BaseUserManager,
-    PermissionsMixin,
-)
-from django.core.exceptions import ValidationError as DjangoValidationError
-from django.db.models import (
-    UUIDField,
-    TextChoices,
-    CharField,
-    DateTimeField,
-    ImageField,
-    ForeignKey,
-    SET_NULL,
-    BooleanField,
-    EmailField,
-)
 import uuid
 
-from apps.models import CreatedModel, uzbek_phone_validator
-from apps.utils import normalize_phone
+from django.contrib.auth.base_user import BaseUserManager, AbstractBaseUser
+from django.contrib.auth.models import PermissionsMixin
+from django.db.models import ForeignKey, CharField, TextChoices, SET_NULL
+from django.db.models.fields import UUIDField, BooleanField, DateTimeField, EmailField
 
-
-class Branch(CreatedModel):
-    name = CharField(max_length=255, verbose_name="Filial nomi")
-    address = CharField(max_length=500, blank=True, default="", verbose_name="Manzil")
-    phone = CharField(max_length=20, blank=True, validators=[uzbek_phone_validator])
-    created_at = DateTimeField(auto_now_add=True, verbose_name="Yaratilgan vaqt")
-
-    class Meta:
-        ordering = ["name"]
-
-    def __str__(self):
-        return self.name
+from apps.models import uzbek_phone_validator
 
 
 class UserManager(BaseUserManager):
-    def create_user(self, phone, first_name, last_name, password=None, **extra_fields):
+    def create_user(self, phone, password=None, **extra_fields):
         if not phone:
-            raise ValueError("Telefon raqam majburiy.")
-        user = self.model(
-            phone=phone, first_name=first_name, last_name=last_name, **extra_fields
-        )
+            raise ValueError("Telefon raqami kiritilishi shart")
+        user = self.model(phone=phone, **extra_fields)
         user.set_password(password)
         user.save(using=self._db)
         return user
 
-    def create_superuser(
-        self, phone, first_name, last_name, password=None, **extra_fields
-    ):
+    def create_superuser(self, phone, password=None, **extra_fields):
         extra_fields.setdefault("is_staff", True)
         extra_fields.setdefault("is_superuser", True)
-        extra_fields.setdefault("role", "admin")
-
-        if not extra_fields.get("is_staff"):
-            raise ValueError("Superuser is_staff=True bo'lishi shart.")
-        if not extra_fields.get("is_superuser"):
-            raise ValueError("Superuser is_superuser=True bo'lishi shart.")
-
-        return self.create_user(phone, first_name, last_name, password, **extra_fields)
+        extra_fields.setdefault("role", User.Role.OWNER)
+        return self.create_user(phone, password, **extra_fields)
 
 
 class User(AbstractBaseUser, PermissionsMixin):
     class Role(TextChoices):
+        OWNER = "owner", "Boss"
+        MANAGER = "manager", "Manager"
+        CASHIER = "cashier", "Cashier"
         ADMIN = "admin", "Admin"
-        BOSS = "boss", "Boss"
-        OWNER = "owner", "Egasi"
-        MANAGER = "manager", "Menejer"
-        CASHIER = "cashier", "Kassir"
 
     id = UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     email = EmailField(max_length=255, blank=True, null=True, unique=True)
     phone = CharField(max_length=20, unique=True, validators=[uzbek_phone_validator])
-    first_name = CharField(max_length=100)
-    last_name = CharField(max_length=100)
-    role = CharField(max_length=20, choices=Role.choices, default=Role.CASHIER)
-    avatar = ImageField(upload_to="avatars/", blank=True, null=True)
+    first_name = CharField(max_length=50)
+    last_name = CharField(max_length=50, blank=True, null=True)
+
     branch = ForeignKey(
         "apps.Branch",
-        on_delete=SET_NULL,
+        SET_NULL,
         null=True,
         blank=True,
-        related_name="employees",
+        related_name="users",
     )
 
-    is_active = BooleanField(default=True, verbose_name="Faol")
-    is_staff = BooleanField(default=False, verbose_name="Xodim")
+    role = CharField(max_length=20, choices=Role.choices, default=Role.CASHIER)
 
+    is_active = BooleanField(default=True)
+    is_staff = BooleanField(default=False)
     created_at = DateTimeField(auto_now_add=True)
     updated_at = DateTimeField(auto_now=True)
 
     objects = UserManager()
 
     USERNAME_FIELD = "phone"
-    REQUIRED_FIELDS = ["first_name", "last_name"]
+    REQUIRED_FIELDS = ["first_name"]
 
     class Meta:
         ordering = ["-created_at"]
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"{self.full_name} ({self.get_role_display()})"
 
     @property
-    def full_name(self):
-        return f"{self.first_name} {self.last_name}".strip()
+    def full_name(self) -> str:
+        return f"{self.first_name} {self.last_name or ''}".strip()
 
-    def clean(self):
-        super().clean()
-        if self.phone:
-            self.phone = normalize_phone(self.phone)
-        if (
-            self.role in [self.Role.ADMIN, self.Role.BOSS, self.Role.OWNER]
-            and self.branch is not None
-        ):
-            raise DjangoValidationError(
-                {"branch": "Admin, Boss yoki Owner filialga biriktirilmaydi!"}
-            )
+    @property
+    def is_owner(self):
+        return self.role == self.Role.OWNER
 
-    def save(self, *args, **kwargs):
-        if self.is_superuser:
-            self.role = self.Role.ADMIN
-        self.full_clean(exclude=["password"])
-        super().save(*args, **kwargs)
+    @property
+    def is_admin(self):
+        return self.role == self.Role.ADMIN
+
+    @property
+    def is_manager(self):
+        return self.role == self.Role.MANAGER
+
+    @property
+    def is_cashier(self):
+        return self.role == self.Role.CASHIER

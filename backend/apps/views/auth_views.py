@@ -6,7 +6,6 @@ from rest_framework.permissions import AllowAny
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from apps.serializers import RegisterModelSerializer, LoginModelSerializer
-from apps.serializers.pos_serializers import UserStaffSerializer
 
 
 @extend_schema(tags=["auth"])
@@ -38,8 +37,13 @@ class LoginView(GenericAPIView):
                 {
                     "refresh": str(refresh),
                     "access": str(refresh.access_token),
-                    "user": UserStaffSerializer(user).data,
+                    "user": {
+                        "id": str(user.id),
+                        "role": user.role,
+                        "first_name": user.first_name,
+                        "phone": user.phone,
+                    },
                 },
                 status=status.HTTP_200_OK,
             )
-        return Response(serializer.errors, status=status.HTTP_401_UNAUTHORIZED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

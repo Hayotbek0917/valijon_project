@@ -20,6 +20,7 @@ def validate_uzbek_phone(value):
 
 
 class RegisterModelSerializer(ModelSerializer):
+    email = serializers.EmailField(required=False)
     password = CharField(write_only=True)
     confirm_password = CharField(write_only=True)
 
@@ -60,7 +61,10 @@ class LoginModelSerializer(Serializer):
     password = CharField(write_only=True)
 
     def validate(self, attrs):
-        normalized = normalize_phone(attrs.get("phone", ""))
+        raw_phone = attrs.get("phone", "")
+        normalized = normalize_phone(raw_phone)
+        print(f"DEBUG: Input: {raw_phone}, Normalized: {normalized}")
+
         password = attrs.get("password")
 
         user = authenticate(

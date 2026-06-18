@@ -12,11 +12,11 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "dev-only-change-in-production")
 
 DEBUG = True
-
 ALLOWED_HOSTS = [
-    host.strip()
-    for host in os.getenv("ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
-    if host.strip()
+    "localhost",
+    "127.0.0.1",
+    "corepos-api.up.railway.app",
+    ".railway.app",
 ]
 
 INSTALLED_APPS = [
@@ -67,11 +67,10 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "root.wsgi.application"
 
+
 _use_sqlite = os.getenv("USE_SQLITE", "").lower() in ("1", "true", "yes")
 if os.getenv("DATABASE_URL"):
-    DATABASES = {
-        "default": dj_database_url.config(default=os.getenv("DATABASE_URL"))
-    }
+    DATABASES = {"default": dj_database_url.config(default=os.getenv("DATABASE_URL"))}
 else:
     DATABASES = {
         "default": {
@@ -81,13 +80,15 @@ else:
     }
 
 CORS_ALLOWED_ORIGINS = [
-    origin.strip()
-    for origin in os.getenv(
-        "CORS_ALLOWED_ORIGINS",
-        "http://localhost:5173,http://127.0.0.1:5173,http://localhost:5174,http://127.0.0.1:5174,http://localhost:3000,http://127.0.0.1:3000",
-    ).split(",")
-    if origin.strip()
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "http://localhost:5174",
+    "http://127.0.0.1:5174",
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "https://corepos.up.railway.app",
 ]
+
 CORS_ALLOW_CREDENTIALS = True
 
 # Password validation

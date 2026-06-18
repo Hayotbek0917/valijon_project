@@ -1,32 +1,32 @@
 from django.contrib import admin
-from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
-
-from apps.models import (
-    User, Branch, Category, Product, Supplier, Warehouse, InventoryItem,
-    Sale, SaleLine, PurchaseOrder, PurchaseOrderLine, Customer, Agent, AgentOrder,
-)
-
-
-@admin.register(Branch)
-class BranchAdmin(admin.ModelAdmin):
-    list_display = ('name', 'phone', 'created_at')
+from django.contrib.auth.admin import UserAdmin
+from django.utils.translation import gettext_lazy as _
+from .models import User
 
 
 @admin.register(User)
-class UserAdmin(BaseUserAdmin):
-    # 'username' o'rniga 'phone' ishlatiladi
-    list_display = ("phone", "full_name", "role", "branch", "is_active")
-    list_filter = ("role", "is_active", "branch")
+class UserModelView(UserAdmin):
+    list_display = (
+        "phone",
+        "first_name",
+        "last_name",
+        "role",
+        "branch",
+        "is_active",
+        "is_staff",
+    )
+    list_filter = ("role", "is_staff", "is_active", "is_superuser", "branch")
     search_fields = ("phone", "first_name", "last_name")
     ordering = ("-created_at",)
 
-    # 'username' ni olib tashlab, 'phone' ni qo'shdik
     fieldsets = (
         (None, {"fields": ("phone", "password")}),
-        ("Shaxsiy", {"fields": ("first_name", "last_name", "email", "avatar")}),
-        ("Rol", {"fields": ("role", "branch")}),
         (
-            "Huquq",
+            _("Shaxsiy Ma'lumotlar"),
+            {"fields": ("first_name", "last_name", "role", "branch")},
+        ),
+        (
+            _("Huquqlar & Rollar"),
             {
                 "fields": (
                     "is_active",
@@ -34,9 +34,10 @@ class UserAdmin(BaseUserAdmin):
                     "is_superuser",
                     "groups",
                     "user_permissions",
-                )
+                ),
             },
         ),
+        (_("Muhim sanalar"), {"fields": ("last_login", "created_at", "updated_at")}),
     )
 
     add_fieldsets = (
@@ -44,20 +45,16 @@ class UserAdmin(BaseUserAdmin):
             None,
             {
                 "classes": ("wide",),
-                "fields": ("phone", "first_name", "last_name", "password", "role"),
+                "fields": (
+                    "phone",
+                    "password",
+                    "first_name",
+                    "last_name",
+                    "role",
+                    "branch",
+                ),
             },
         ),
     )
 
-admin.site.register(Category)
-admin.site.register(Product)
-admin.site.register(Supplier)
-admin.site.register(Warehouse)
-admin.site.register(InventoryItem)
-admin.site.register(Sale)
-admin.site.register(SaleLine)
-admin.site.register(PurchaseOrder)
-admin.site.register(PurchaseOrderLine)
-admin.site.register(Customer)
-admin.site.register(Agent)
-admin.site.register(AgentOrder)
+    readonly_fields = ("created_at", "updated_at", "last_login")

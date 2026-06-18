@@ -1,44 +1,22 @@
 services:
-  db:
-    image: postgres:16-alpine
-    environment:
-      POSTGRES_DB: pos_systemdb
-      POSTGRES_PASSWORD: 1
-    volumes:
-      - pgdata:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d pos_systemdb"]
-      interval: 3s
-      timeout: 5s
-      retries: 15
-    ports:
-      - "5433:5432"
-
   backend:
     build: ./backend
     env_file:
       - backend/.env
-    environment:
-      POSTGRES_HOST: db
-    depends_on:
-      db:
-        condition: service_healthy
     ports:
-      - "${BACKEND_PORT:-9001}:8001"
+      - "8001:8001"
     volumes:
-      - media_data:/app/media
+      - ./backend:/app
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
 
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
       args:
-        VITE_API_URL: "http://localhost:9001"
+        VITE_API_URL: "http://localhost:8001/api/v1"
+    ports:
+      - "5173:80"
     depends_on:
       - backend
-    ports:
-      - "5173:3000"
-
-volumes:
-  pgdata:
-  media_data:
