@@ -3,7 +3,7 @@ import { resolveMediaUrl } from '../utils/image';
 export function mapUserFromApi(u) {
   return {
     id: u.id,
-    username: u.username,
+    username: u.username || u.phone || '',
     name: u.name || `${u.first_name || ''} ${u.last_name || ''}`.trim(),
     role: u.role,
     active: u.active ?? u.is_active ?? true,

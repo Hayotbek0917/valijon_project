@@ -32,13 +32,13 @@ export default function Staff() {
   } = useAuth();
 
   const isReadOnly = !permissions.manageUsers;
-  const [userForm, setUserForm] = useState({ username: '', password: '', name: '', role: ROLES.CASHIER });
+  const [userForm, setUserForm] = useState({ phone: '', password: '', name: '', role: ROLES.CASHIER });
   const [userMsg, setUserMsg] = useState({ type: '', text: '' });
 
   const handleAddUser = async () => {
     const result = await addUser(userForm);
     if (result.ok) {
-      setUserForm({ username: '', password: '', name: '', role: ROLES.CASHIER });
+      setUserForm({ phone: '', password: '', name: '', role: ROLES.CASHIER });
       setUserMsg({ type: 'success', text: "Xodim qo'shildi" });
     } else {
       setUserMsg({ type: 'error', text: result.error });
@@ -68,11 +68,12 @@ export default function Staff() {
             <h3 className="text-sm font-bold text-gray-700 mb-4">Yangi xodim</h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <TextField
-                label="Login"
-                value={userForm.username}
-                onChange={(e) => setUserForm((f) => ({ ...f, username: e.target.value }))}
+                label="Telefon raqam"
+                value={userForm.phone}
+                onChange={(e) => setUserForm((f) => ({ ...f, phone: e.target.value }))}
                 size="small"
                 fullWidth
+                placeholder="901234567"
                 sx={fieldSx}
               />
               <TextField
@@ -115,7 +116,7 @@ export default function Staff() {
         <Table size="small">
           <TableHead>
             <TableRow sx={{ '& th': { fontWeight: 700, fontSize: 12, color: '#6b7280' } }}>
-              <TableCell>Login</TableCell>
+              <TableCell>Telefon</TableCell>
               <TableCell>Ism</TableCell>
               <TableCell>Rol</TableCell>
               <TableCell>Holat</TableCell>
@@ -125,7 +126,7 @@ export default function Staff() {
           <TableBody>
             {users.map((u) => (
               <TableRow key={u.id} hover>
-                <TableCell sx={{ fontSize: 13 }}>{u.username}</TableCell>
+                <TableCell sx={{ fontSize: 13 }}>{u.username || u.phone}</TableCell>
                 <TableCell sx={{ fontSize: 13, fontWeight: 600 }}>{u.name}</TableCell>
                 <TableCell>
                   {isReadOnly || u.id === currentUser?.id || u.role === ROLES.ADMIN ? (

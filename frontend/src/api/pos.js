@@ -21,18 +21,18 @@ export async function loadPosData() {
     branches, products, warehouses, inventory, suppliers,
     dealerOrders, customers, creditAccounts, agents, agentOrders, sales, categories,
   ] = await Promise.all([
-    fetchAll('/api/v1/branches'),
-    fetchAll('/api/v1/products'),
-    fetchAll('/api/v1/warehouses'),
-    fetchAll('/api/v1/inventory'),
-    fetchAll('/api/v1/suppliers'),
-    fetchAll('/api/v1/purchase-orders'),
-    fetchAll('/api/v1/customers'),
-    fetchAll('/api/v1/credit-accounts'),
-    fetchAll('/api/v1/agents'),
-    fetchAll('/api/v1/agent-orders'),
-    fetchAll('/api/v1/sales'),
-    fetchAll('/api/v1/categories'),
+    fetchAll('/branches'),
+    fetchAll('/products'),
+    fetchAll('/warehouses'),
+    fetchAll('/inventory'),
+    fetchAll('/suppliers'),
+    fetchAll('/purchase-orders'),
+    fetchAll('/customers'),
+    fetchAll('/credit-accounts'),
+    fetchAll('/agents'),
+    fetchAll('/agent-orders'),
+    fetchAll('/sales'),
+    fetchAll('/categories'),
   ]);
 
   return {
@@ -52,7 +52,7 @@ export async function loadPosData() {
 }
 
 export async function registerCatalogProduct(supplierId, catalogItemId, options = {}) {
-  const res = await apiRequest(`/api/v1/suppliers/${supplierId}/register-catalog-product`, {
+  const res = await apiRequest(`/suppliers/${supplierId}/register-catalog-product`, {
     method: 'POST',
     body: JSON.stringify({
       catalog_item_id: catalogItemId,
@@ -83,12 +83,12 @@ export async function createSupplier(branchId, data) {
       barcode: item.barcode || '',
     })),
   };
-  const res = await apiRequest('/api/v1/suppliers', { method: 'POST', body: JSON.stringify(payload) });
+  const res = await apiRequest('/suppliers', { method: 'POST', body: JSON.stringify(payload) });
   return mapSupplierFromApi(res);
 }
 
 export async function addCatalogItemToSupplier(supplierId, item, category = '') {
-  const res = await apiRequest(`/api/v1/suppliers/${supplierId}/catalog`, {
+  const res = await apiRequest(`/suppliers/${supplierId}/catalog`, {
     method: 'POST',
     body: JSON.stringify({
       name: item.name,
@@ -123,12 +123,12 @@ export async function createPurchaseOrder(branchId, data) {
       cost_price: item.costPrice,
     })),
   };
-  const res = await apiRequest('/api/v1/purchase-orders', { method: 'POST', body: JSON.stringify(payload) });
+  const res = await apiRequest('/purchase-orders', { method: 'POST', body: JSON.stringify(payload) });
   return mapPurchaseOrderFromApi(res);
 }
 
 export async function receivePurchaseOrder(orderDbId, payload) {
-  const res = await apiRequest(`/api/v1/purchase-orders/${orderDbId}/receive`, {
+  const res = await apiRequest(`/purchase-orders/${orderDbId}/receive`, {
     method: 'POST',
     body: JSON.stringify({
       warehouse: payload.warehouseId,
@@ -152,7 +152,7 @@ export async function saveProduct(branchId, data, editId) {
     emoji: data.emoji || '📦',
     is_draft: data.isDraft ?? false,
   };
-  const path = editId ? `/api/v1/products/${editId}` : '/api/v1/products';
+  const path = editId ? `/products/${editId}` : '/products';
   const method = editId ? 'PATCH' : 'POST';
   const res = await apiRequest(path, { method, body: JSON.stringify(payload) });
   return mapProductFromApi(res);
@@ -161,7 +161,7 @@ export async function saveProduct(branchId, data, editId) {
 export async function uploadProductImage(productId, file) {
   const formData = new FormData();
   formData.append('image', file);
-  const res = await apiRequest(`/api/v1/products/${productId}/upload-image`, {
+  const res = await apiRequest(`/products/${productId}/upload-image`, {
     method: 'POST',
     body: formData,
   });
@@ -169,7 +169,7 @@ export async function uploadProductImage(productId, file) {
 }
 
 export async function deleteProduct(id) {
-  await apiRequest(`/api/v1/products/${id}`, { method: 'DELETE' });
+  await apiRequest(`/products/${id}`, { method: 'DELETE' });
 }
 
 export async function createAgent(branchId, data) {
@@ -180,7 +180,7 @@ export async function createAgent(branchId, data) {
     supplier: data.supplierId || null,
     supplier_name: data.supplierName || '',
   };
-  const res = await apiRequest('/api/v1/agents', { method: 'POST', body: JSON.stringify(payload) });
+  const res = await apiRequest('/agents', { method: 'POST', body: JSON.stringify(payload) });
   return mapAgentFromApi(res);
 }
 
@@ -198,12 +198,12 @@ export function mapPosDraftFromApi(d) {
 
 export async function fetchPosDrafts(branchId) {
   const qs = branchId ? `?branch=${branchId}` : '';
-  const all = await fetchAll(`/api/v1/pos-drafts${qs}`);
+  const all = await fetchAll(`/pos-drafts${qs}`);
   return all.map(mapPosDraftFromApi);
 }
 
 export async function createPosDraft(branchId, data) {
-  const res = await apiRequest('/api/v1/pos-drafts', {
+  const res = await apiRequest('/pos-drafts', {
     method: 'POST',
     body: JSON.stringify({
       branch: branchId,
@@ -217,7 +217,7 @@ export async function createPosDraft(branchId, data) {
 }
 
 export async function deletePosDraft(id) {
-  await apiRequest(`/api/v1/pos-drafts/${id}`, { method: 'DELETE' });
+  await apiRequest(`/pos-drafts/${id}`, { method: 'DELETE' });
 }
 
 export async function createSale(branchId, data) {
@@ -240,12 +240,12 @@ export async function createSale(branchId, data) {
       unit_price: i.price,
     })),
   };
-  const res = await apiRequest('/api/v1/sales', { method: 'POST', body: JSON.stringify(payload) });
+  const res = await apiRequest('/sales', { method: 'POST', body: JSON.stringify(payload) });
   return mapSaleFromApi(res);
 }
 
 export async function payCreditAccount(accountId, amount, note = '') {
-  const res = await apiRequest(`/api/v1/credit-accounts/${accountId}/pay`, {
+  const res = await apiRequest(`/credit-accounts/${accountId}/pay`, {
     method: 'POST',
     body: JSON.stringify({ amount, note }),
   });
@@ -253,7 +253,7 @@ export async function payCreditAccount(accountId, amount, note = '') {
 }
 
 export async function fetchPurchaseOrderDbId(externalId) {
-  const all = await fetchAll('/api/v1/purchase-orders');
+  const all = await fetchAll('/purchase-orders');
   const found = all.find((o) => o.external_id === externalId);
   return found?.id ?? null;
 }
