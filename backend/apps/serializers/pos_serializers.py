@@ -1,5 +1,6 @@
 import random
 
+from django.db import transaction
 from rest_framework.serializers import ModelSerializer, Serializer, ValidationError
 from rest_framework.fields import (
     UUIDField,
@@ -228,21 +229,22 @@ class SaleSerializer(ModelSerializer):
         ):
             pass
 
-        sale = create_sale_with_stock(
-            validated_data, lines_data, exclude_draft_id=pos_draft_id
-        )
-
-        if method == Sale.PayMethod.CREDIT:
-            record_credit_charge(
-                sale.branch,
-                sale.amount,
-                sale=sale,
-                cashier_name=sale.cashier_name or "",
-                account_id=credit_account_id,
-                customer_name=customer_name,
-                phone=customer_phone,
-                force_new=bool(create_new_credit_account),
+        with transaction.atomic():
+            sale = create_sale_with_stock(
+                validated_data, lines_data, exclude_draft_id=pos_draft_id
             )
+
+            if method == Sale.PayMethod.CREDIT:
+                record_credit_charge(
+                    sale.branch,
+                    sale.amount,
+                    sale=sale,
+                    cashier_name=sale.cashier_name or "",
+                    account_id=credit_account_id,
+                    customer_name=customer_name,
+                    phone=customer_phone,
+                    force_new=bool(create_new_credit_account),
+                )
 
         return sale
 

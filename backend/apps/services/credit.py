@@ -107,7 +107,7 @@ def record_credit_charge(
     account.save(update_fields=['balance'])
     CreditTransaction.objects.create(
         account=account,
-        kind=CreditTransaction.KIND_CHARGE,
+        kind=CreditTransaction.Kind.CHARGE,
         amount=amt,
         sale=sale,
         cashier_name=cashier_name or '',
@@ -127,7 +127,7 @@ def record_credit_payment(account, amount, cashier_name='', note=''):
     account.save(update_fields=['balance'])
     CreditTransaction.objects.create(
         account=account,
-        kind=CreditTransaction.KIND_PAYMENT,
+        kind=CreditTransaction.Kind.PAYMENT,
         amount=amt,
         cashier_name=cashier_name or '',
         note=note or '',
