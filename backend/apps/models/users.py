@@ -1,7 +1,7 @@
 import uuid
 
 from django.contrib.auth.base_user import BaseUserManager, AbstractBaseUser
-from django.contrib.auth.models import PermissionsMixin
+from django.contrib.auth.models import PermissionsMixin, User
 from django.db.models import ForeignKey, CharField, TextChoices, SET_NULL
 from django.db.models.fields import UUIDField, BooleanField, DateTimeField, EmailField
 
@@ -50,7 +50,7 @@ class UserManager(BaseUserManager):
     created_at = DateTimeField(auto_now_add=True)
     updated_at = DateTimeField(auto_now=True)
 
-    objects = UserManager()
+    objects = BaseUserManager()
 
     USERNAME_FIELD = "phone"
     REQUIRED_FIELDS = ["first_name"]

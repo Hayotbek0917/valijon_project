@@ -20,7 +20,7 @@ class Sale(CreatedModel):
         max_length=50, null=True, blank=True, verbose_name="Tashqi ID"
     )
     date = DateField(auto_now_add=True, verbose_name="Sana")
-    time = TimeField(auto_now_add=True)
+    time = DateField(auto_now_add=True)
     amount = DecimalField(max_digits=14, decimal_places=2, verbose_name="Summa")
     method = CharField(
         max_length=20,
