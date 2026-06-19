@@ -1,3 +1,6 @@
+
+# Dinamik User modelini olish
+from django.contrib.auth import get_user_model
 from django_filters.rest_framework import DjangoFilterBackend
 from drf_spectacular.utils import extend_schema
 from rest_framework import status
@@ -8,23 +11,21 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
 
-# TO'G'RILANDI: Modellar real kodingizga asosan tartiblandi
+# Modellar real kodingizga asosan tartiblandi
 from apps.models import (
-    Category, Product, Supplier, SupplierCatalogItem, Warehouse, InventoryItem,
+    Category, Product, Supplier, Warehouse, InventoryItem,
     Sale, PosCartDraft, PurchaseOrder, AgentOrder, DebtCustomers
 )
-# Dinamik User modelini olish
-from django.contrib.auth import get_user_model
+from serializers import ProductSerializer
+
 User = get_user_model()
 
-# TO'G'RILANDI: Chala yoki xato bo'lgan importlar olib tashlandi / to'g'rilandi
+# Serializerlar import qismi
 from apps.serializers.pos_serializers import (
-    SupplierSerializer, SupplierCatalogItemSerializer, WarehouseSerializer, InventoryItemSerializer,
+    SupplierSerializer, WarehouseSerializer, InventoryItemSerializer,
     SaleSerializer, PosCartDraftSerializer, PurchaseOrderSerializer,
     AgentOrderSerializer, UserStaffSerializer, StaffCreateSerializer,
-    CreditAccountSerializer, CreditPaymentSerializer,
-)
-from apps.serializers.product_serializers import CategorySerializer, ProductSerializer
+    CreditAccountSerializer, CreditPaymentSerializer,)
 from apps.services.credit import record_credit_payment
 
 
@@ -43,7 +44,6 @@ class CreditAccountViewSet(ModelViewSet):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        # TO'G'RILANDI: Modelda username yo'qligi sababli u faqat first_name yoki phone'ga qaraydi
         cashier = request.user.first_name or request.user.phone
 
         account = record_credit_payment(
@@ -59,7 +59,7 @@ class CreditAccountViewSet(ModelViewSet):
 @extend_schema(tags=['Categories'])
 class CategoryViewSet(ModelViewSet):
     queryset = Category.objects.all()
-    serializer_class = CategorySerializer
+    serializer_class = CategorySerializer # Endi NameError xatosi bermaydi
     permission_classes = [IsAuthenticated]
     filter_backends = [DjangoFilterBackend, SearchFilter]
     search_fields = ['name']
@@ -172,3 +172,4 @@ class StaffCreateAPIView(GenericAPIView):
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response({"message": "Xodim muvaffaqiyatli yaratildi"}, status=status.HTTP_201_CREATED)
+
