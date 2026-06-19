@@ -1,9 +1,10 @@
 from django.db.models import ForeignKey, CASCADE, CharField, DecimalField, TextChoices, SET_NULL, Q
 from django.db.models.constraints import UniqueConstraint
-from apps.models.base_model import BaseModel, CreatedModel, uzbek_phone_validator
+
+from apps.models.base_model import CreatedModel, uzbek_phone_validator
 
 
-class DebtCustomers(BaseModel):
+class DebtCustomers(CreatedModel):
     branch = ForeignKey("apps.Branch", CASCADE, related_name="credit_accounts")
     customer_name = CharField(max_length=255, verbose_name="Mijoz ismi")
     phone = CharField(max_length=20, blank=True, validators=[uzbek_phone_validator])

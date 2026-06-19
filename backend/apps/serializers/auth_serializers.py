@@ -16,17 +16,16 @@ class RegisterModelSerializer(ModelSerializer):
     class Meta:
         model = User
         fields = (
-            'id', 'username', 'phone', 'first_name', 'last_name',
+            'id', 'phone', 'first_name', 'last_name',
             'role', 'branch', 'password', 'confirm_password',
         )
         extra_kwargs = {
             'id': {'read_only': True},
         }
 
-    def validate_username(self, value):
-        value = value.strip().lower()
-        if User.objects.filter(username=value).exists():
-            raise ValidationError('Bu login band')
+    def validate_phone(self, value):
+        if User.objects.filter(phone=value).exists():
+            raise ValidationError('Bu telefon raqami allaqachon ro\'yxatdan o\'tgan.')
         return value
 
     def validate(self, attrs):
@@ -54,7 +53,7 @@ class LoginModelSerializer(Serializer):
 
         password = attrs.get("password")
 
-        # Birinchi navbatda telefon raqami orqali tekshiramiz
+        # Telefon raqami (username o'rnida) orqali tekshiramiz
         user = authenticate(
             request=self.context.get('request'),
             username=normalized,
