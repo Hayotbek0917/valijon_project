@@ -1,7 +1,5 @@
 from rest_framework import serializers
-
 from apps.validators.phone import normalize_uz_phone, validate_uz_phone
-
 
 class UzPhoneField(serializers.CharField):
     """O'zbekiston telefoni — DB da 9 raqam, API javobida +998 prefiksi."""

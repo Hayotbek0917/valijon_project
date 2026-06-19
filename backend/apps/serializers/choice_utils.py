@@ -1,6 +1,5 @@
 from rest_framework.serializers import ValidationError
 
-
 def normalize_choice_label(value, choices, error_message):
     text = (value or "").strip()
     valid_values = {choice_value for choice_value, _ in choices}

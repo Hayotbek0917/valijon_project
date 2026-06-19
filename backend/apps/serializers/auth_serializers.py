@@ -1,25 +1,16 @@
 import re
-
 from django.contrib.auth import authenticate
 from django.contrib.auth.password_validation import validate_password
 from rest_framework.exceptions import ValidationError
-from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError as DjangoValidationError
-from django.contrib.auth import authenticate
 from rest_framework.fields import CharField
 from rest_framework.serializers import ModelSerializer, Serializer
 
 from apps.models import User
 from apps.serializers.fields import UzPhoneField
 
-
 class RegisterModelSerializer(ModelSerializer):
     """Ro'yxatdan o'tish — telefon +998 formatda saqlanadi."""
-
-
-class RegisterModelSerializer(ModelSerializer):
-    password = CharField(write_only=True)
-    confirm_password = CharField(write_only=True)
     password = CharField(write_only=True)
     confirm_password = CharField(write_only=True)
     phone = UzPhoneField()
@@ -32,7 +23,6 @@ class RegisterModelSerializer(ModelSerializer):
         )
         extra_kwargs = {
             'id': {'read_only': True},
-            'password': {'write_only': True},
         }
 
     def validate_username(self, value):
@@ -42,12 +32,10 @@ class RegisterModelSerializer(ModelSerializer):
         return value
 
     def validate_password(self, value):
-        validate_password(value)
-        return value
-
-    def validate_email(self, value):
-        if not value:
-            return None
+        try:
+            validate_password(value)
+        except DjangoValidationError as exc:
+            raise ValidationError(list(exc.messages))
         return value
 
     def validate(self, attrs):
@@ -68,14 +56,18 @@ class LoginModelSerializer(Serializer):
 
     def validate(self, attrs):
         raw_phone = attrs.get("phone", "")
-        normalized = normalize_phone(raw_phone)
-        print(f"DEBUG: Input: {raw_phone}, Normalized: {normalized}")
+        from apps.validators.phone import normalize_uz_phone
+        try:
+            normalized = normalize_uz_phone(raw_phone)
+        except Exception:
+            normalized = raw_phone
 
         password = attrs.get("password")
 
+        # login_id xatosi tuzatildi va tekshirish uchun normalized yuborildi
         user = authenticate(
             request=self.context.get('request'),
-            username=login_id,
+            username=normalized,
             password=password,
         )
         if not user and attrs.get('phone'):
