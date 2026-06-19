@@ -8,14 +8,19 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
 
+# TO'G'RILANDI: Modellar real kodingizga asosan tartiblandi
 from apps.models import (
     Category, Product, Supplier, SupplierCatalogItem, Warehouse, InventoryItem,
-    Sale, PosCartDraft, PurchaseOrder, AgentOrder, User, DebtCustomers,
+    Sale, PosCartDraft, PurchaseOrder, AgentOrder, DebtCustomers
 )
-from apps.models.base_model import PurchaseOrderStatus
+# Dinamik User modelini olish
+from django.contrib.auth import get_user_model
+User = get_user_model()
+
+# TO'G'RILANDI: Chala yoki xato bo'lgan importlar olib tashlandi / to'g'rilandi
 from apps.serializers.pos_serializers import (
     SupplierSerializer, SupplierCatalogItemSerializer, WarehouseSerializer, InventoryItemSerializer,
-    SaleSerializer, PosCartDraftSerializer, PurchaseOrderSerializer, PurchaseReceiveSerializer,
+    SaleSerializer, PosCartDraftSerializer, PurchaseOrderSerializer,
     AgentOrderSerializer, UserStaffSerializer, StaffCreateSerializer,
     CreditAccountSerializer, CreditPaymentSerializer,
 )
@@ -25,7 +30,7 @@ from apps.services.credit import record_credit_payment
 
 @extend_schema(tags=['Credit Accounts'])
 class CreditAccountViewSet(ModelViewSet):
-    queryset = CreditAccount.objects.all()
+    queryset = DebtCustomers.objects.all()
     serializer_class = CreditAccountSerializer
     permission_classes = [IsAuthenticated]
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
@@ -38,7 +43,8 @@ class CreditAccountViewSet(ModelViewSet):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        cashier = request.user.first_name or request.user.username
+        # TO'G'RILANDI: Modelda username yo'qligi sababli u faqat first_name yoki phone'ga qaraydi
+        cashier = request.user.first_name or request.user.phone
 
         account = record_credit_payment(
             account=account,
@@ -50,59 +56,85 @@ class CreditAccountViewSet(ModelViewSet):
         return Response(CreditAccountSerializer(account).data)
 
 
-# Boshqa ViewSetlarni ham shu tartibda urls.py ga ulaysiz...
+@extend_schema(tags=['Categories'])
 class CategoryViewSet(ModelViewSet):
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
     permission_classes = [IsAuthenticated]
+    filter_backends = [DjangoFilterBackend, SearchFilter]
+    search_fields = ['name']
 
 
+@extend_schema(tags=['Products'])
 class ProductViewSet(ModelViewSet):
     queryset = Product.objects.all()
     serializer_class = ProductSerializer
     permission_classes = [IsAuthenticated]
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+    filterset_fields = ['category', 'branch', 'status']
+    search_fields = ['name', 'barcode']
 
 
+@extend_schema(tags=['Suppliers'])
 class SupplierViewSet(ModelViewSet):
     queryset = Supplier.objects.all()
     serializer_class = SupplierSerializer
     permission_classes = [IsAuthenticated]
+    filter_backends = [DjangoFilterBackend, SearchFilter]
+    filterset_fields = ['branch', 'status']
+    search_fields = ['name', 'phone']
 
 
+@extend_schema(tags=['Warehouses'])
 class WarehouseViewSet(ModelViewSet):
     queryset = Warehouse.objects.all()
     serializer_class = WarehouseSerializer
     permission_classes = [IsAuthenticated]
+    filter_backends = [DjangoFilterBackend]
+    filterset_fields = ['branch']
 
 
+@extend_schema(tags=['Inventory'])
 class InventoryViewSet(ModelViewSet):
-    queryset = InventoryItem.objects.all()
+    queryset = InventoryItem.objects.select_related('product', 'warehouse').all()
     serializer_class = InventoryItemSerializer
     permission_classes = [IsAuthenticated]
+    filter_backends = [DjangoFilterBackend]
+    filterset_fields = ['warehouse', 'product']
 
 
+@extend_schema(tags=['Sales'])
 class SaleViewSet(ModelViewSet):
     queryset = Sale.objects.all()
     serializer_class = SaleSerializer
     permission_classes = [IsAuthenticated]
+    filter_backends = [DjangoFilterBackend, OrderingFilter]
+    filterset_fields = ['branch', 'method', 'cashier']
 
 
+@extend_schema(tags=['POS Cart Drafts'])
 class PosCartDraftViewSet(ModelViewSet):
     queryset = PosCartDraft.objects.all()
     serializer_class = PosCartDraftSerializer
     permission_classes = [IsAuthenticated]
 
 
+@extend_schema(tags=['Purchase Orders'])
 class PurchaseOrderViewSet(ModelViewSet):
     queryset = PurchaseOrder.objects.all()
     serializer_class = PurchaseOrderSerializer
     permission_classes = [IsAuthenticated]
+    filter_backends = [DjangoFilterBackend]
+    filterset_fields = ['branch', 'supplier', 'status']
 
 
+@extend_schema(tags=['Agent Orders'])
 class AgentOrderViewSet(ModelViewSet):
     queryset = AgentOrder.objects.all()
     serializer_class = AgentOrderSerializer
     permission_classes = [IsAuthenticated]
+    filter_backends = [DjangoFilterBackend]
+    filterset_fields = ['branch', 'supplier']
 
 
 @extend_schema(tags=['Staff'])
@@ -111,6 +143,7 @@ class UserStaffViewSet(ModelViewSet):
     serializer_class = UserStaffSerializer
     permission_classes = [IsAuthenticated]
     http_method_names = ['get', 'head', 'options']
+    filter_backends = [DjangoFilterBackend]
     filterset_fields = ['role', 'branch', 'is_active']
 
     def get_queryset(self):

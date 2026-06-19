@@ -1,6 +1,10 @@
 import random
+from django.contrib.auth import get_user_model
+from rest_framework import serializers
+from rest_framework.fields import UUIDField, DecimalField, SerializerMethodField, CharField, IntegerField, DateField, JSONField
 from rest_framework.serializers import ModelSerializer, Serializer
-from rest_framework.fields import UUIDField, DecimalField, SerializerMethodField, CharField, IntegerField, DateField
+
+User = get_user_model()
 
 from apps.models import (
     Supplier,
@@ -13,7 +17,6 @@ from apps.models import (
     PurchaseOrder,
     PurchaseOrderLine,
     AgentOrder,
-    User,
     DebtCustomers,
 )
 from apps.serializers.choice_utils import normalize_choice_label
@@ -143,10 +146,14 @@ class PurchaseReceiveSerializer(Serializer):
     lines = PurchaseReceiveLineSerializer(many=True)
 
 
+
 class AgentOrderSerializer(ModelSerializer):
+    items = JSONField(required=False)
+
     class Meta:
         model = AgentOrder
-        fields = ["id", "branch", "supplier", "agent_name", "customer_name", "items", "total", "date"]
+        fields = ["id", "branch", "supplier", "agent_name", "customer_name", "total", "date", "items"]
+
 
 
 class UserStaffSerializer(ModelSerializer):
@@ -154,7 +161,8 @@ class UserStaffSerializer(ModelSerializer):
 
     class Meta:
         model = User
-        fields = ["id", "username", "phone", "first_name", "last_name", "role", "branch", "branch_name", "is_active"]
+        fields = ["id", "phone", "first_name", "last_name", "role", "branch", "branch_name", "is_active"]
+
 
 
 class CreditAccountSerializer(ModelSerializer):
@@ -169,7 +177,6 @@ class CreditAccountSerializer(ModelSerializer):
         if not obj.phone:
             return ""
         from apps.validators.phone import format_uz_phone_display
-
         return format_uz_phone_display(obj.phone)
 
 
@@ -178,11 +185,10 @@ class CreditPaymentSerializer(Serializer):
     note = CharField(required=False, allow_blank=True, default="")
 
 
-# TO'G'RILANDI: O'zgaruvchilar va create mantiqi barqaror holatga keltirildi
 class StaffCreateSerializer(Serializer):
     first_name = CharField()
-    last_name = CharField()
-    phone = CharField(required=False, allow_blank=True)
+    last_name = CharField(required=False, allow_blank=True, default="")
+    phone = CharField(required=True)
     password = CharField(write_only=True)
     role = CharField()
     branch = UUIDField(required=False, allow_null=True)
@@ -205,6 +211,17 @@ class StaffCreateSerializer(Serializer):
         ]
         return normalize_choice_label(value, allowed_roles, "Xodim roli noto'g'ri")
 
+    def validate_phone(self, value):
+        from apps.validators.phone import normalize_uz_phone
+        try:
+            normalized = normalize_uz_phone(value)
+        except Exception as e:
+            raise serializers.ValidationError(str(e))
+
+        if User.objects.filter(phone=normalized).exists():
+            raise serializers.ValidationError("Bu telefon raqamli xodim allaqachon mavjud.")
+        return normalized
+
     def create(self, validated_data):
         from apps.models import Branch
 
@@ -215,17 +232,11 @@ class StaffCreateSerializer(Serializer):
         if not branch and role in [User.Role.MANAGER, User.Role.CASHIER]:
             branch = Branch.objects.first()
 
-        # Tasodifiy username yaratish mantiqi
-        username = f"user_{random.randint(10000, 99999)}"
-        while User.objects.filter(username=username).exists():
-            username = f"user_{random.randint(10000, 99999)}"
-
         return User.objects.create_user(
-            username=username,
+            phone=validated_data["phone"],
             password=validated_data["password"],
             first_name=validated_data["first_name"],
-            last_name=validated_data["last_name"],
-            phone=validated_data.get("phone", ""),
+            last_name=validated_data.get("last_name", ""),
             role=role,
             branch=branch,
         )

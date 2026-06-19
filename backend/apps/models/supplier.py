@@ -65,7 +65,7 @@ class Agent(BaseModel):
     def save(self, *args, **kwargs):
         if self.phone:
             self.phone = normalize_uz_phone(self.phone)
-        if self.agent_phone:
+        if hasattr(self, 'agent_phone') and self.agent_phone:
             self.agent_phone = normalize_uz_phone(self.agent_phone)
         super().save(*args, **kwargs)
 
