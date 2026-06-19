@@ -1,11 +1,8 @@
-from django.db.models import (
-    ForeignKey, CASCADE, CharField, DecimalField, TextChoices, SET_NULL, Q
-)
+from django.db.models import ForeignKey, CASCADE, CharField, DecimalField, TextChoices, SET_NULL, Q
 from django.db.models.constraints import UniqueConstraint
 from apps.models.base_model import BaseModel, CreatedModel, uzbek_phone_validator
 
-
-class DebtCustomers(BaseModel):
+class CreditAccount(BaseModel):
     branch = ForeignKey("apps.Branch", CASCADE, related_name="credit_accounts")
     customer_name = CharField(max_length=255, verbose_name="Mijoz ismi")
     phone = CharField(max_length=20, blank=True, validators=[uzbek_phone_validator])
@@ -30,6 +27,8 @@ class DebtCustomers(BaseModel):
     def is_in_debt(self):
         return self.balance > 0
 
+# Eski importlar buzilmasligi uchun alias qo'shamiz
+DebtCustomers = CreditAccount
 
 class CreditTransaction(CreatedModel):
     class Kind(TextChoices):
@@ -37,7 +36,7 @@ class CreditTransaction(CreatedModel):
         PAYMENT = "payment", "To'lov"
 
     account = ForeignKey(
-        "apps.DebtCustomers", CASCADE, related_name="transactions", verbose_name="Hisob"
+        "apps.CreditAccount", CASCADE, related_name="transactions", verbose_name="Hisob"
     )
     kind = CharField(max_length=20, choices=Kind.choices, verbose_name="Turi")
     amount = DecimalField(max_digits=14, decimal_places=2, verbose_name="Summa")
@@ -54,8 +53,8 @@ class CreditTransaction(CreatedModel):
 
     class Meta:
         ordering = ["-created_at"]
-        verbose_name = "Qarz Amaliyoti"
-        verbose_name_plural = "Qarz Amaliyotlari"
+        verbose_name = "Nasiya Transaksiya"
+        verbose_name_plural = "Nasiya Transaksiyalar"
 
     def __str__(self):
-        return f"{self.account.customer_name} | {self.get_kind_display()} | {self.amount:,}"
+        return f"{self.account.customer_name} - {self.kind} - {self.amount}"

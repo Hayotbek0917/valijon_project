@@ -1,26 +1,19 @@
 from django.db.models import (
-    CharField,
-    TextChoices,
-    ForeignKey,
-    PROTECT,
-    SET_NULL,
-    DecimalField,
-    ImageField,
-    PositiveIntegerField,
-    Q,
+    CharField, TextChoices, ForeignKey, PROTECT, SET_NULL,
+    DecimalField, ImageField, PositiveIntegerField, Q
 )
 from django.db.models.constraints import UniqueConstraint
 from apps.models.base_model import TimeStampedModel, BaseModel
 
-class Category(TimeStampedModel):
-    """Mahsulot kategoriyasi — Ichimliklar, Shirinliklar va hokazo."""
-
 class Category(BaseModel):
     name = CharField(max_length=255, unique=True, verbose_name="Kategoriya nomi")
 
+    class Meta:
+        verbose_name = "Kategoriya"
+        verbose_name_plural = "Kategoriyalar"
+
     def __str__(self):
         return self.name
-
 
 class Product(TimeStampedModel):
     class Status(TextChoices):
@@ -44,6 +37,8 @@ class Product(TimeStampedModel):
         verbose_name="Holat",
     )
     stock = PositiveIntegerField(default=0, verbose_name="Qoldiq")
+    size = CharField(max_length=50, blank=True, default="", verbose_name="O'lchami")
+    unit = CharField(max_length=20, blank=True, default="dona", verbose_name="O'lchov birligi")
 
     class Meta:
         ordering = ["-created_at"]
@@ -60,10 +55,6 @@ class Product(TimeStampedModel):
 
     @property
     def profit(self):
-        return self.selling_price - self.base_price
-
-    @property
-    def status(self):
-        if self.stock > 0:
-            return "Yetarli"
-        return "Tugagan"
+        if self.selling_price and self.base_price:
+            return self.selling_price - self.base_price
+        return 0

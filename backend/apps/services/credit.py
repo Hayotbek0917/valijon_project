@@ -1,11 +1,7 @@
 from decimal import Decimal
-
 from django.db import transaction
 from rest_framework.exceptions import ValidationError
-
 from apps.models import CreditAccount, CreditTransaction
-
-
 from apps.validators.phone import normalize_uz_phone
 
 
@@ -26,14 +22,7 @@ def _find_by_phone(branch, phone):
     return None
 
 
-def resolve_credit_account(
-    branch,
-    *,
-    account_id=None,
-    customer_name='',
-    phone='',
-    force_new=False,
-):
+def resolve_credit_account(branch, *, account_id=None, customer_name='', phone='', force_new=False):
     if account_id:
         try:
             return CreditAccount.objects.get(pk=account_id, branch=branch)
@@ -54,54 +43,28 @@ def resolve_credit_account(
 
     phone_text = (phone or '').strip()
     if phone_text:
-        phone_text = normalize_uz_phone(phone_text)
-    matches_by_name = CreditAccount.objects.filter(branch=branch, customer_name__iexact=name)
+        try:
+            phone_text = normalize_uz_phone(phone_text)
+            account = CreditAccount.objects.filter(branch=branch, phone=phone_text).first()
+            if account:
+                return account
+        except Exception:
+            pass
 
-    if phone_text:
-        existing = _find_by_phone(branch, phone_text)
-        if existing:
-            return existing
-        return CreditAccount.objects.create(
-            branch=branch,
-            customer_name=name,
-            phone=phone_text,
-            balance=Decimal('0'),
-        )
-
-    count = matches_by_name.count()
-    if count == 0:
-        return CreditAccount.objects.create(
-            branch=branch,
-            customer_name=name,
-            phone='',
-            balance=Decimal('0'),
-        )
-    if count == 1:
-        return matches_by_name.first()
-
-    raise ValidationError({
-        'customer_name': (
-            f'"{name}" ismli {count} ta mijoz bor — ro\'yxatdan tanlang yoki "Yangi mijoz" bosing'
-        ),
-    })
+    return CreditAccount.objects.create(
+        branch=branch,
+        customer_name=name,
+        phone=phone_text,
+        balance=Decimal('0'),
+    )
 
 
 @transaction.atomic
-def record_credit_charge(
-    branch,
-    amount,
-    sale=None,
-    cashier_name='',
-    note='',
-    *,
-    account_id=None,
-    customer_name='',
-    phone='',
-    force_new=False,
-):
+def record_credit_charge(branch, amount, sale=None, cashier_name='', note='', *, account_id=None, customer_name='',
+                         phone='', force_new=False):
     amt = Decimal(str(amount))
     if amt <= 0:
-        raise ValidationError({'amount': 'Summa 0 dan katta bo\'lishi kerak'})
+        raise ValidationError({'amount': "Summa 0 dan katta bo'lishi kerak"})
 
     account = resolve_credit_account(
         branch,
@@ -112,6 +75,7 @@ def record_credit_charge(
     )
     account.balance += amt
     account.save(update_fields=['balance'])
+
     CreditTransaction.objects.create(
         account=account,
         kind=CreditTransaction.Kind.CHARGE,
@@ -127,11 +91,13 @@ def record_credit_charge(
 def record_credit_payment(account, amount, cashier_name='', note=''):
     amt = Decimal(str(amount))
     if amt <= 0:
-        raise ValidationError({'amount': 'To\'lov summasi 0 dan katta bo\'lishi kerak'})
+        raise ValidationError({'amount': "To'lov summasi 0 dan katta bo'lishi kerak"})
     if amt > account.balance:
-        raise ValidationError({'amount': f'Qarz {account.balance} — undan ko\'p to\'lab bo\'lmaydi'})
+        raise ValidationError({'amount': f"Qarz {account.balance} — undan ko'p to'lab bo'lmaydi"})
+
     account.balance -= amt
     account.save(update_fields=['balance'])
+
     CreditTransaction.objects.create(
         account=account,
         kind=CreditTransaction.Kind.PAYMENT,
