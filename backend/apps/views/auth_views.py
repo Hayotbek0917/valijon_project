@@ -6,7 +6,6 @@ from rest_framework.permissions import AllowAny
 from rest_framework.throttling import ScopedRateThrottle
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from apps.models import User
 from apps.serializers.auth_serializers import RegisterModelSerializer, LoginModelSerializer
 
 
@@ -21,9 +20,7 @@ class RegisterView(GenericAPIView):
         serializer = self.get_serializer(data=request.data)
         if serializer.is_valid():
             serializer.save()
-            return Response(
-                {"message": "Ro'yxatdan o'tdingiz!"}, status=status.HTTP_201_CREATED
-            )
+            return Response({"message": "Ro'yxatdan o'tdingiz!"}, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 

@@ -1,6 +1,14 @@
-from django.db import models
-from django.db.models import TextChoices, ForeignKey, CASCADE, CharField, DateField, DecimalField, SET_NULL, JSONField, \
-    PositiveIntegerField
+from django.db.models import (
+    TextChoices,
+    ForeignKey,
+    CASCADE,
+    CharField,
+    DateField,
+    DecimalField,
+    SET_NULL,
+    JSONField,
+    PositiveIntegerField,
+)
 
 from apps.models import CreatedModel, TimeStampedModel
 
@@ -16,9 +24,7 @@ class Sale(CreatedModel):
         MIXED = "mixed", "Aralash"
 
     branch = ForeignKey("apps.Branch", CASCADE, related_name="sales")
-    external_id = CharField(
-        max_length=50, null=True, blank=True, verbose_name="Tashqi ID"
-    )
+    external_id = CharField(max_length=50, null=True, blank=True, verbose_name="Tashqi ID")
     date = DateField(auto_now_add=True, verbose_name="Sana")
     time = DateField(auto_now_add=True)
     amount = DecimalField(max_digits=14, decimal_places=2, verbose_name="Summa")
@@ -28,16 +34,14 @@ class Sale(CreatedModel):
         default=PayMethod.CASH,
         verbose_name="To'lov turi",
     )
-    cashier = ForeignKey(
-        "apps.User", SET_NULL, null=True, blank=True, related_name="sales"
-    )
+    cashier = ForeignKey("apps.User", SET_NULL, null=True, blank=True, related_name="sales")
     cashier_name = CharField(max_length=255, blank=True, default="")
     items = JSONField(default=list, verbose_name="Mahsulotlar")
 
     class Meta:
-        verbose_name = 'Sotuv'
-        verbose_name_plural = 'Sotuvlar'
-        ordering = ['-date', '-external_id']
+        verbose_name = "Sotuv"
+        verbose_name_plural = "Sotuvlar"
+        ordering = ["-date", "-external_id"]
 
     def __str__(self):
         return self.external_id if self.external_id else str(self.id)
@@ -57,6 +61,7 @@ class SaleLine(TimeStampedModel):
 
 class PosCartDraft(TimeStampedModel):
     """Savat Qoralamasi"""
+
     branch = ForeignKey("apps.Branch", CASCADE, related_name="pos_cart_drafts")
     cashier = ForeignKey("apps.User", CASCADE, related_name="pos_cart_drafts")
     label = CharField(max_length=120, verbose_name="Nom")

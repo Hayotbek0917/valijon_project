@@ -7,7 +7,6 @@ from .supplier import Supplier, SupplierCatalogItem, Agent, AgentOrder
 from .inventory import Warehouse, InventoryItem
 from .sale import Sale, SaleLine, PosCartDraft
 from .purchase import PurchaseOrder, PurchaseOrderLine
-from .customer import Customer
 
 __all__ = [
     "TimeStampedModel",

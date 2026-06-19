@@ -1,7 +1,14 @@
-from django.conf import settings
+from django.core.exceptions import ValidationError
 from django.db.models import (
-    TextChoices, ForeignKey, CASCADE, CharField, SET_NULL,
-    DateField, DecimalField, PositiveIntegerField, Q
+    TextChoices,
+    ForeignKey,
+    CASCADE,
+    CharField,
+    SET_NULL,
+    DateField,
+    DecimalField,
+    PositiveIntegerField,
+    Q,
 )
 from django.db.models.constraints import UniqueConstraint
 from apps.models.base_model import BaseModel, CreatedModel
@@ -9,6 +16,7 @@ from apps.models.base_model import BaseModel, CreatedModel
 
 class PurchaseOrder(CreatedModel):
     """Xarid Buyurtmasi"""
+
     class Status(TextChoices):
         DRAFT = "draft", "Qoralama"
         PENDING = "pending", "Kutilmoqda"
@@ -18,7 +26,9 @@ class PurchaseOrder(CreatedModel):
 
     branch = ForeignKey("apps.Branch", CASCADE, related_name="purchase_orders")
     external_id = CharField(max_length=50, null=True, blank=True, verbose_name="Tashqi ID")
-    supplier = ForeignKey("apps.Supplier", SET_NULL, null=True, blank=True, related_name="orders", verbose_name="Ta'minotchi")
+    supplier = ForeignKey(
+        "apps.Supplier", SET_NULL, null=True, blank=True, related_name="orders", verbose_name="Ta'minotchi"
+    )
     supplier_name = CharField(max_length=255, blank=True, default="", verbose_name="Ta'minotchi nomi")
     date = DateField(verbose_name="Sana")
     receipt_date = DateField(null=True, blank=True, verbose_name="Qabul sanasi")
@@ -40,9 +50,7 @@ class PurchaseOrder(CreatedModel):
 
     def clean(self):
         if self.status == self.Status.DELIVERED and not self.receipt_date:
-            raise ValidationError(
-                {"receipt_date": "Mahsulot qabul qilinganda qabul sanasi kiritilishi shart!"}
-            )
+            raise ValidationError({"receipt_date": "Mahsulot qabul qilinganda qabul sanasi kiritilishi shart!"})
 
     def save(self, *args, **kwargs):
         if self.supplier:
@@ -52,9 +60,19 @@ class PurchaseOrder(CreatedModel):
 
 class PurchaseOrderLine(BaseModel):
     """Xarid Satri"""
+
     order = ForeignKey("apps.PurchaseOrder", CASCADE, related_name="lines", verbose_name="Buyurtma")
-    product = ForeignKey("apps.Product", SET_NULL, null=True, blank=True, related_name="purchase_lines", verbose_name="Mahsulot")
-    catalog_item = ForeignKey("apps.SupplierCatalogItem", SET_NULL, null=True, blank=True, related_name="order_lines", verbose_name="Katalog elementi")
+    product = ForeignKey(
+        "apps.Product", SET_NULL, null=True, blank=True, related_name="purchase_lines", verbose_name="Mahsulot"
+    )
+    catalog_item = ForeignKey(
+        "apps.SupplierCatalogItem",
+        SET_NULL,
+        null=True,
+        blank=True,
+        related_name="order_lines",
+        verbose_name="Katalog elementi",
+    )
 
     name = CharField(max_length=255, verbose_name="Nomi")
     quantity = PositiveIntegerField(verbose_name="Miqdor")
@@ -62,11 +80,6 @@ class PurchaseOrderLine(BaseModel):
     size = CharField(max_length=50, blank=True, default="", verbose_name="O'lchami")
     unit = CharField(max_length=20, blank=True, default="ta", verbose_name="O'lchov birligi")
     cost_price = DecimalField(max_digits=12, decimal_places=2, verbose_name="Narx")
-
-    class Meta:
-        verbose_name = 'Buyurtma qatori'
-        verbose_name_plural = 'Buyurtma qatorlari'
-
 
     def __str__(self):
         return f"{self.name} x{self.quantity}"
