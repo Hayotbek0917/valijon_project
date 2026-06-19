@@ -165,8 +165,7 @@ SIMPLE_JWT = {
     "BLACKLIST_AFTER_ROTATION": True,
 }
 
-# --- Model konstantalari (ForeignKey on_delete) ---
-# Barcha modellarda shu yerdan olinadi — base_model.py va boshqa fayllar settings orqali chaqiradi
+
 from django.db.models import CASCADE, PROTECT, SET_NULL  # noqa: E402
 
 ON_DELETE_CASCADE = CASCADE

@@ -2,7 +2,6 @@ import re
 
 from django.core.exceptions import ValidationError
 
-# DB: 9 ta raqam (masalan 901234567, 996002511). Ko'rinish: +998901234567
 _UZ_PHONE_9_PATTERN = re.compile(r'^9\d{8}$')
 
 

@@ -1,30 +1,17 @@
 import uuid
 
 from django.contrib.auth.base_user import BaseUserManager, AbstractBaseUser
-from django.contrib.auth.models import PermissionsMixin, User
+from django.contrib.auth.models import PermissionsMixin
 from django.db.models import ForeignKey, CharField, TextChoices, SET_NULL
 from django.db.models.fields import UUIDField, BooleanField, DateTimeField, EmailField
 
 from apps.models import uzbek_phone_validator
+from models.managers import UserManager
 
 
-class UserManager(BaseUserManager):
-    def create_user(self, phone, password=None, **extra_fields):
-        if not phone:
-            raise ValueError("Telefon raqami kiritilishi shart")
-        user = self.model(phone=phone, **extra_fields)
-        user.set_password(password)
-        user.save(using=self._db)
-        return user
-
-    def create_superuser(self, phone, password=None, **extra_fields):
-        extra_fields.setdefault("is_staff", True)
-        extra_fields.setdefault("is_superuser", True)
-        extra_fields.setdefault("role", User.Role.OWNER)
-        return self.create_user(phone, password, **extra_fields)
-
+class User(AbstractBaseUser, PermissionsMixin):
     class Role(TextChoices):
-        OWNER = "owner", "Boss"
+        OWNER = "owner", "Owner"
         MANAGER = "manager", "Manager"
         CASHIER = "cashier", "Cashier"
         ADMIN = "admin", "Admin"
@@ -34,15 +21,7 @@ class UserManager(BaseUserManager):
     phone = CharField(max_length=20, unique=True, validators=[uzbek_phone_validator])
     first_name = CharField(max_length=50)
     last_name = CharField(max_length=50, blank=True, null=True)
-
-    branch = ForeignKey(
-        "apps.Branch",
-        SET_NULL,
-        null=True,
-        blank=True,
-        related_name="users",
-    )
-
+    branch = ForeignKey("apps.Branch", SET_NULL, null=True, blank=True, related_name="users")
     role = CharField(max_length=20, choices=Role.choices, default=Role.CASHIER)
 
     is_active = BooleanField(default=True)
@@ -50,15 +29,15 @@ class UserManager(BaseUserManager):
     created_at = DateTimeField(auto_now_add=True)
     updated_at = DateTimeField(auto_now=True)
 
-    objects = BaseUserManager()
+    objects = UserManager()
 
     USERNAME_FIELD = "phone"
     REQUIRED_FIELDS = ["first_name"]
 
     class Meta:
-        verbose_name = 'Foydalanuvchi'
-        verbose_name_plural = 'Foydalanuvchilar'
-        ordering = ['-created_at']
+        verbose_name = "Foydalanuvchi"
+        verbose_name_plural = "Foydalanuvchilar"
+        ordering = ["-created_at"]
 
     def __str__(self) -> str:
         return f"{self.full_name} ({self.get_role_display()})"

@@ -1,19 +1,26 @@
 from django.db.models import (
-    CharField, TextChoices, ForeignKey, PROTECT, SET_NULL,
-    DecimalField, ImageField, PositiveIntegerField, Q
+    CharField,
+    TextChoices,
+    ForeignKey,
+    PROTECT,
+    SET_NULL,
+    DecimalField,
+    ImageField,
+    PositiveIntegerField,
+    Q,
 )
 from django.db.models.constraints import UniqueConstraint
-from apps.models.base_model import TimeStampedModel, BaseModel
+
+from models import BaseModel, TimeStampedModel
+
+
 
 class Category(BaseModel):
     name = CharField(max_length=255, unique=True, verbose_name="Kategoriya nomi")
 
-    class Meta:
-        verbose_name = "Kategoriya"
-        verbose_name_plural = "Kategoriyalar"
-
     def __str__(self):
         return self.name
+
 
 class Product(TimeStampedModel):
     class Status(TextChoices):

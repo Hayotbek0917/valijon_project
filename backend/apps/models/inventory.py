@@ -4,16 +4,12 @@ from django.db.models.constraints import UniqueConstraint
 from apps.models import TimeStampedModel
 from apps.models.base_model import BaseModel
 
+
 class Warehouse(TimeStampedModel):
     """Ombor / sklad — filial ichidagi saqlash joyi."""
 
-class Warehouse(BaseModel):
     branch = ForeignKey("apps.Branch", CASCADE, related_name="warehouses")
     name = CharField(max_length=255, verbose_name="Ombor nomi")
-
-    class Meta:
-        verbose_name = "Ombor"
-        verbose_name_plural = "Omborlar"
 
     def __str__(self):
         return self.name
@@ -25,16 +21,12 @@ class InventoryItem(BaseModel):
     quantity = PositiveIntegerField(default=0, verbose_name="Miqdor")
 
     class Meta:
-        verbose_name = 'Ombor qoldig\'i'
-        verbose_name_plural = 'Ombor qoldiqlari'
         constraints = [
             UniqueConstraint(
                 fields=["product", "warehouse"],
                 name="unique_product_per_warehouse",
             ),
         ]
-        verbose_name = "Ombor Maxsuloti"
-        verbose_name_plural = "Ombor Maxsulotlari"
 
     def __str__(self):
         return f"{self.product.name} @ {self.warehouse.name}: {self.quantity}"

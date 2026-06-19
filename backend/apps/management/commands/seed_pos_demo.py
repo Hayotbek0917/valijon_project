@@ -2,7 +2,6 @@ from decimal import Decimal
 
 from django.core.management.base import BaseCommand
 from django.db import transaction
-from decimal import Decimal
 from apps.models import (
     User,
     Market,
@@ -11,8 +10,6 @@ from apps.models import (
     Product,
     Warehouse,
     InventoryItem,
-    Supplier,
-    SupplierCatalogItem,
 )
 
 

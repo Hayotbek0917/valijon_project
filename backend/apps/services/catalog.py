@@ -41,7 +41,7 @@ def register_catalog_item_as_product(catalog_item, branch, selling_price=None, b
             catalog_item.save(update_fields=['barcode'])
         return product
 
-    supplier = catalog_item.supplier
+    catalog_item.supplier
     category_name = 'Boshqa'
     category, _ = Category.objects.get_or_create(name=category_name)
 
