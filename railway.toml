@@ -3,7 +3,7 @@ builder = "DOCKERFILE"
 dockerfilePath = "backend/Dockerfile.railway"
 
 [deploy]
-startCommand = "uv run gunicorn root.wsgi:application --bind 0.0.0.0:$PORT --workers 2 --timeout 120"
-healthcheckPath = "/api/v1/auth/login"
+startCommand = "sh scripts/railway-entrypoint.sh"
+healthcheckPath = "/api/schema/"
 healthcheckTimeout = 300
 restartPolicyType = "ON_FAILURE"

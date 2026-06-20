@@ -62,9 +62,13 @@ class LoginModelSerializer(Serializer):
         password = attrs.get('password')
 
         if not raw_login:
-            raise ValidationError('Login yoki telefon kiritilishi shart')
+            raise ValidationError('Login kiritilishi shart')
 
-        candidates = [raw_login, raw_login.lower()]
+        login_key = raw_login.lower()
+        if login_key == 'admin':
+            login_key = 'superadmin'
+
+        candidates = [raw_login, raw_login.lower(), login_key]
         try:
             local = normalize_uz_phone(raw_login)
             candidates.extend([local, f'+998{local}', format_uz_phone_display(local)])
@@ -82,12 +86,12 @@ class LoginModelSerializer(Serializer):
                 break
 
         if not user:
-            lookup = User.objects.filter(username__iexact=raw_login).first()
+            lookup = User.objects.filter(username__iexact=login_key).first()
             if lookup and lookup.check_password(password):
                 user = lookup
 
         if not user:
-            raise ValidationError('Telefon raqam yoki parol xato')
+            raise ValidationError('Login yoki parol xato')
 
         if not user.is_active:
             raise ValidationError('Foydalanuvchi aktiv emas')
