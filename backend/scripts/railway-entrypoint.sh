@@ -1,18 +1,21 @@
 #!/bin/sh
 set -e
 
+PY="/app/.venv/bin/python"
+GUNICORN="/app/.venv/bin/gunicorn"
+
 echo ">> Migratsiyalar..."
-uv run python manage.py migrate --noinput
+"$PY" manage.py migrate --noinput
 
 run_seed() {
   if [ "$SEED_QUICK" = "1" ]; then
-    uv run python manage.py seed_magazin_ecosystem --clear --count 3 \
+    "$PY" manage.py seed_magazin_ecosystem --clear --count 3 \
       --products-min 50 --products-max 80 \
       --debtors-min 20 --debtors-max 30 \
       --daily-sales-min 50 --daily-sales-max 80 \
       --revenue-min 500000 --revenue-max 1000000
   else
-    uv run python manage.py seed_magazin_ecosystem --clear \
+    "$PY" manage.py seed_magazin_ecosystem --clear \
       --count "${SEED_MAGAZIN_COUNT:-100}" \
       --products-min "${SEED_PRODUCTS_MIN:-500}" \
       --products-max "${SEED_PRODUCTS_MAX:-1000}" \
@@ -31,7 +34,7 @@ run_seed() {
 }
 
 if [ "$SEED_MAGAZIN" = "1" ]; then
-  EXISTING=$(uv run python manage.py shell -c "
+  EXISTING=$("$PY" manage.py shell -c "
 from apps.models import Branch
 print(Branch.objects.filter(name__startswith='Magazin ').count())
 " 2>/dev/null | tail -1)
@@ -47,7 +50,7 @@ fi
 
 PORT="${PORT:-8000}"
 echo ">> Gunicorn :$PORT"
-exec uv run gunicorn root.wsgi:application \
+exec "$GUNICORN" root.wsgi:application \
   --bind "0.0.0.0:$PORT" \
   --workers "${GUNICORN_WORKERS:-2}" \
   --timeout 120
