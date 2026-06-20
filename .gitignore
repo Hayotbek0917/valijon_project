@@ -1,14 +1,42 @@
-### VirtualEnv template
-# Virtualenv
-# http://iamzed.com/2009/05/07/a-primer-on-virtualenv/
-.Python
-[Bb]in
-[Ii]nclude
-[Ll]ib
-[Ll]ib64
-[Ll]ocal
-[Ss]cripts
-pyvenv.cfg
-.venv
-pip-selfcheck.json
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+*.egg-info/
+dist/
+build/
 
+# Django
+db.sqlite3
+backend/media/
+backend/static/
+
+# Env / secrets
+.env
+.env.*
+!.env.example
+!**/.env.example
+backend/.env
+backend/.env.railway.prod
+frontend/.env
+store_logins.txt
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# Node / frontend
+node_modules/
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker volumes
+pos_pg_data/

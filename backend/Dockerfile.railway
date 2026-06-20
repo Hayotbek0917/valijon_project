@@ -1,0 +1,16 @@
+FROM ghcr.io/astral-sh/uv:alpine
+
+RUN apk add --no-cache tzdata
+ENV TZ=Asia/Tashkent
+
+WORKDIR /app
+
+COPY pyproject.toml uv.lock ./
+RUN uv sync --frozen
+
+COPY . .
+
+ENV PORT=8000
+EXPOSE 8000
+
+CMD uv run gunicorn root.wsgi:application --bind "0.0.0.0:${PORT}" --workers 2 --timeout 120
