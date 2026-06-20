@@ -2,7 +2,7 @@ from django.db.models import (
     TextChoices, ForeignKey, CASCADE, CharField, PositiveIntegerField,
     DecimalField, SET_NULL, DateField, BigAutoField, DateTimeField, Model,
 )
-from apps.models.base_model import BigIntModel, uzbek_phone_validator
+from apps.models.base_model import BigIntModel, CreatedModel, uzbek_phone_validator
 
 
 class Supplier(CreatedModel):

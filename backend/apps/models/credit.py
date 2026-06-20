@@ -10,7 +10,12 @@ from django.db.models import (
 )
 from django.db.models.constraints import UniqueConstraint
 
-from apps.models.base_model import BigIntCreatedModel, BigIntModel, uzbek_phone_validator
+from apps.models.base_model import (
+    BigIntCreatedModel,
+    BigIntModel,
+    CreatedModel,
+    uzbek_phone_validator,
+)
 
 
 class DebtCustomers(BigIntModel):

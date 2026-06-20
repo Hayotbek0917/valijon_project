@@ -1,8 +1,9 @@
+from rest_framework import serializers
 from rest_framework.fields import CharField, DecimalField, SerializerMethodField, UUIDField, IntegerField
 from rest_framework.relations import SlugRelatedField
 from rest_framework.serializers import ModelSerializer
 
-from apps.models import Category, Product
+from apps.models import Branch, Category, Product
 from apps.serializers.choice_utils import normalize_choice_label
 from apps.serializers.fields import UzPhoneField
 

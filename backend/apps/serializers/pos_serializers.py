@@ -18,8 +18,10 @@ from rest_framework.fields import (
 )
 
 from apps.models import (
+    Branch,
     Supplier,
     SupplierCatalogItem,
+    User,
     Warehouse,
     InventoryItem,
     Sale,
@@ -29,6 +31,7 @@ from apps.models import (
     PurchaseOrderLine,
     AgentOrder,
     DebtCustomers,
+    CreditTransaction,
 )
 from apps.serializers.choice_utils import normalize_choice_label
 from apps.serializers.fields import UzPhoneField
@@ -66,6 +69,8 @@ class SupplierSerializer(ModelSerializer):
 
 
 class WarehouseSerializer(ModelSerializer):
+    business_id = UUIDField(source="branch_id", read_only=True)
+
     class Meta:
         model = Warehouse
         fields = ['id', 'branch', 'business_id', 'name']
@@ -77,7 +82,7 @@ class InventoryItemSerializer(ModelSerializer):
 
     class Meta:
         model = InventoryItem
-        fields = ['id', 'product', 'product_id', 'warehouse', 'warehouse_id', 'quantity']
+        fields = ['id', 'product', 'product_name', 'warehouse', 'warehouse_name', 'quantity']
 
 
 class SaleLineSerializer(ModelSerializer):
@@ -88,6 +93,12 @@ class SaleLineSerializer(ModelSerializer):
 
 class SaleSerializer(ModelSerializer):
     lines = SaleLineSerializer(many=True, read_only=True)
+    business_id = UUIDField(source="branch_id", read_only=True)
+    pos_draft_id = IntegerField(write_only=True, required=False, allow_null=True)
+    customer_name = CharField(write_only=True, required=False, allow_blank=True)
+    customer_phone = CharField(write_only=True, required=False, allow_blank=True)
+    credit_account_id = UUIDField(write_only=True, required=False, allow_null=True)
+    create_new_credit_account = BooleanField(write_only=True, required=False, default=False)
 
     class Meta:
         model = Sale
@@ -117,13 +128,15 @@ class SaleSerializer(ModelSerializer):
 
 
 class PosCartDraftSerializer(ModelSerializer):
+    business_id = UUIDField(source="branch_id", read_only=True)
+
     class Meta:
         model = PosCartDraft
         fields = [
-            'id', 'branch', 'business_id', 'customer_name', 'phone', 'balance',
-            'transactions',
+            'id', 'branch', 'business_id', 'cashier', 'label', 'pay_method',
+            'items', 'total', 'is_draft', 'created_at', 'updated_at',
         ]
-        read_only_fields = ['balance']
+        read_only_fields = ['id', 'business_id', 'cashier', 'is_draft', 'created_at', 'updated_at']
 
 
 
@@ -135,6 +148,8 @@ class PurchaseOrderLineSerializer(ModelSerializer):
 
 class PurchaseOrderSerializer(ModelSerializer):
     lines = PurchaseOrderLineSerializer(many=True, read_only=True)
+    business_id = UUIDField(source="branch_id", read_only=True)
+    supplier_id = UUIDField(read_only=True, allow_null=True)
 
     class Meta:
         model = PurchaseOrder
@@ -276,3 +291,30 @@ class StaffCreateSerializer(Serializer):
             role=role,
             branch=branch,
         )
+
+
+class CreditTransactionSerializer(ModelSerializer):
+    class Meta:
+        model = CreditTransaction
+        fields = ['id', 'kind', 'amount', 'note', 'sale', 'cashier_name', 'created_at']
+        read_only_fields = fields
+
+
+class CreditAccountSerializer(ModelSerializer):
+    business_id = UUIDField(source="branch_id", read_only=True)
+    transactions = CreditTransactionSerializer(many=True, read_only=True)
+    phone = UzPhoneField(required=False, allow_blank=True)
+
+    class Meta:
+        model = DebtCustomers
+        fields = [
+            'id', 'branch', 'business_id', 'customer_name', 'phone',
+            'balance', 'transactions',
+        ]
+        read_only_fields = ['id', 'business_id', 'balance', 'transactions']
+
+
+class CreditPaymentSerializer(Serializer):
+    amount = DecimalField(max_digits=14, decimal_places=2)
+    cashier_name = CharField(required=False, allow_blank=True)
+    note = CharField(required=False, allow_blank=True)

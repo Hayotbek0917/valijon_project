@@ -17,6 +17,7 @@ from apps.models import (
     CreditTransaction,
     DebtCustomers,
     InventoryItem,
+    Market,
     Product,
     Sale,
     Supplier,
@@ -149,6 +150,7 @@ def clear_magazin_data(stdout=None) -> None:
     Warehouse.objects.filter(branch_id__in=branch_ids).delete()
     User.objects.filter(branch_id__in=branch_ids).delete()
     Branch.objects.filter(id__in=branch_ids).delete()
+    Market.objects.filter(name__startswith=STORE_PREFIX).delete()
     User.objects.filter(username__regex=r"^m\d{3}\.").delete()
 
     if stdout:
@@ -494,7 +496,13 @@ def seed_single_store(
     label = store_label(n)
     profile_name, margin_min, margin_max, cost_overhead = pick_store_profile(n)
     store_rng = random.Random(42 + n * 9973)
+    market = Market.objects.create(
+        name=label,
+        owner_name=f"{label} egasi",
+        address=f"{label}, Toshkent tumani, {n}-uy",
+    )
     branch = Branch.objects.create(
+        market=market,
         name=label,
         address=f"{label}, Toshkent tumani, {n}-uy",
         phone=str(store_phone_base(n) + 9)[-9:],

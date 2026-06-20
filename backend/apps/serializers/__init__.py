@@ -1,2 +1,2 @@
-from serializers.product_serializers import ProductSerializer
+from apps.serializers.product_serializers import ProductSerializer
 

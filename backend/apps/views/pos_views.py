@@ -16,7 +16,8 @@ from rest_framework.viewsets import ModelViewSet
 # Modellar real kodingizga asosan tartiblandi
 from apps.models import (
     Category, Product, Supplier, Warehouse, InventoryItem,
-    Sale, PosCartDraft, PurchaseOrder, AgentOrder, DebtCustomers
+    Sale, PosCartDraft, PurchaseOrder, AgentOrder, DebtCustomers,
+    CreditAccount, User,
 )
 from apps.paginations import LargePageNumberPagination
 from apps.permission import PlatformReadOnlyPermission, user_has_global_branch_access
@@ -58,16 +59,8 @@ class BranchScopedMixin:
         return qs.none()
 
 
-# class ReadOnlyPlatformMixin:
-#     permission_classes = [IsAuthenticated, PlatformReadOnlyPermission]
-#         account = record_credit_payment(
-#             account=account,
-#             amount=serializer.validated_data['amount'],
-#             cashier_name=cashier,
-#             note=serializer.validated_data.get('note', ''),
-#         )
-#         account.refresh_from_db()
-#         return Response(CreditAccountSerializer(account).data)
+class ReadOnlyPlatformMixin:
+    permission_classes = [IsAuthenticated, PlatformReadOnlyPermission]
 
 
 @extend_schema(tags=['Categories'])
@@ -156,7 +149,7 @@ class PosCartDraftViewSet(BranchScopedMixin, ModelViewSet):
     serializer_class = PosCartDraftSerializer
     permission_classes = [IsAuthenticated, PlatformReadOnlyPermission]
     filter_backends = [DjangoFilterBackend]
-    filterset_fields = ['warehouse', 'product']
+    filterset_fields = ['branch']
 
     def perform_create(self, serializer):
         branch = serializer.validated_data['branch']
