@@ -10,6 +10,8 @@ RUN uv sync --frozen
 
 COPY . .
 
-EXPOSE 8001
+RUN chmod +x scripts/docker-entrypoint.sh
 
-CMD ["uv", "run", "python", "manage.py", "runserver", "0.0.0.0:8001"]
+EXPOSE 8000
+
+ENTRYPOINT ["sh", "scripts/docker-entrypoint.sh"]

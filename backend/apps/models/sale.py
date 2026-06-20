@@ -1,19 +1,11 @@
-from django.db.models import (
-    TextChoices,
-    ForeignKey,
-    CASCADE,
-    CharField,
-    DateField,
-    DecimalField,
-    SET_NULL,
-    JSONField,
-    PositiveIntegerField,
-)
+from django.db.models import TextChoices, ForeignKey, CASCADE, CharField, DateField, DecimalField, SET_NULL, JSONField, \
+    PositiveIntegerField, BooleanField
+from django.utils.timezone import localdate
 
-from apps.models import CreatedModel, TimeStampedModel
+from apps.models.base_model import BigIntTimestampedModel, BigIntModel
 
 
-class Sale(CreatedModel):
+class Sale(BigIntModel):
     """Sotuv"""
 
     class PayMethod(TextChoices):
@@ -24,19 +16,22 @@ class Sale(CreatedModel):
         MIXED = "mixed", "Aralash"
 
     branch = ForeignKey("apps.Branch", CASCADE, related_name="sales")
-    external_id = CharField(max_length=50, null=True, blank=True, verbose_name="Tashqi ID")
-    date = DateField(auto_now_add=True, verbose_name="Sana")
-    time = DateField(auto_now_add=True)
+    external_id = CharField(
+        max_length=50, null=True, blank=True, verbose_name="Tashqi ID"
+    )
+    date = DateField(default=localdate, verbose_name="Sana")
+    time = CharField(max_length=10, blank=True, default="", verbose_name="Vaqt")
     amount = DecimalField(max_digits=14, decimal_places=2, verbose_name="Summa")
     method = CharField(
         max_length=20,
         choices=PayMethod.choices,
         default=PayMethod.CASH,
-        verbose_name="To'lov turi",
+        verbose_name="To'lov turi"
     )
     cashier = ForeignKey("apps.User", SET_NULL, null=True, blank=True, related_name="sales")
     cashier_name = CharField(max_length=255, blank=True, default="")
     items = JSONField(default=list, verbose_name="Mahsulotlar")
+    payment_breakdown = JSONField(default=dict, blank=True, verbose_name="Aralash to'lov")
 
     class Meta:
         verbose_name = "Sotuv"
@@ -47,7 +42,7 @@ class Sale(CreatedModel):
         return self.external_id if self.external_id else str(self.id)
 
 
-class SaleLine(TimeStampedModel):
+class SaleLine(BigIntModel):
     """Sotuv Satri"""
 
     sale = ForeignKey("apps.Sale", CASCADE, related_name="lines", verbose_name="Sotuv")
@@ -59,7 +54,7 @@ class SaleLine(TimeStampedModel):
         return f"{self.product_name} x{self.quantity}"
 
 
-class PosCartDraft(TimeStampedModel):
+class PosCartDraft(BigIntTimestampedModel):
     """Savat Qoralamasi"""
 
     branch = ForeignKey("apps.Branch", CASCADE, related_name="pos_cart_drafts")
@@ -73,6 +68,7 @@ class PosCartDraft(TimeStampedModel):
     )
     items = JSONField(default=list, verbose_name="Mahsulotlar")
     total = DecimalField(max_digits=14, decimal_places=2, default=0, verbose_name="Jami")
+    is_draft = BooleanField(default=True, verbose_name="Qoralama")
 
     class Meta:
         ordering = ["-updated_at"]

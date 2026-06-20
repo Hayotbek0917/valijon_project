@@ -1,22 +1,32 @@
-from django.db.models import ForeignKey, CASCADE, CharField, DecimalField, TextChoices, SET_NULL, Q
+from django.db.models import (
+    ForeignKey,
+    CASCADE,
+    CharField,
+    DateTimeField,
+    DecimalField,
+    TextChoices,
+    SET_NULL,
+    Q,
+)
 from django.db.models.constraints import UniqueConstraint
 
-from apps.models.base_model import CreatedModel, uzbek_phone_validator
+from apps.models.base_model import BigIntCreatedModel, BigIntModel, uzbek_phone_validator
 
 
-class DebtCustomers(CreatedModel):
+class DebtCustomers(BigIntModel):
     branch = ForeignKey("apps.Branch", CASCADE, related_name="credit_accounts")
     customer_name = CharField(max_length=255, verbose_name="Mijoz ismi")
     phone = CharField(max_length=20, blank=True, validators=[uzbek_phone_validator])
     balance = DecimalField(max_digits=14, decimal_places=2, default=0, verbose_name="Balans")
 
     class Meta:
+        db_table = "apps_creditaccount"
         ordering = ["customer_name"]
         constraints = [
             UniqueConstraint(
                 fields=["branch", "phone"],
                 condition=Q(phone__gt=""),
-                name="unique_credit_branch_phone_when_set",
+                name="unique_branch_phone_when_set",
             ),
         ]
 
@@ -33,7 +43,9 @@ class CreditTransaction(CreatedModel):
         CHARGE = "charge", "Qarz"
         PAYMENT = "payment", "To'lov"
 
-    account = ForeignKey("apps.DebtCustomers", CASCADE, related_name="transactions", verbose_name="Hisob")
+    account = ForeignKey(
+        "apps.DebtCustomers", CASCADE, related_name="transactions", verbose_name="Hisob"
+    )
     kind = CharField(max_length=20, choices=Kind.choices, verbose_name="Turi")
     amount = DecimalField(max_digits=14, decimal_places=2, verbose_name="Summa")
     note = CharField(max_length=500, blank=True, default="", verbose_name="Izoh")
@@ -49,6 +61,8 @@ class CreditTransaction(CreatedModel):
 
     class Meta:
         ordering = ["-created_at"]
+        verbose_name = "Qarz Amaliyoti"
+        verbose_name_plural = "Qarz Amaliyotlari"
 
     def __str__(self):
-        return f"{self.account.customer_name} - {self.kind} - {self.amount}"
+        return f"{self.account.customer_name} | {self.get_kind_display()} | {self.amount:,}"

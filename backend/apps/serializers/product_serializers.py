@@ -4,28 +4,62 @@ from rest_framework.serializers import ModelSerializer
 
 from apps.models import Category, Product
 from apps.serializers.choice_utils import normalize_choice_label
+from apps.serializers.fields import UzPhoneField
 
 
-class ProductSerializer(ModelSerializer):
-    category = SlugRelatedField(
+class CategorySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Category
+        fields = ['id', 'name']
+
+
+class ProductListSerializer(serializers.ModelSerializer):
+    """Ro'yxat — yengil (rasm URL va qo'shimcha hisoblar yo'q)."""
+
+    category = serializers.CharField(source='category.name', read_only=True)
+    price = serializers.DecimalField(
+        source='selling_price', max_digits=12, decimal_places=2, read_only=True,
+    )
+    cost = serializers.DecimalField(
+        source='base_price', max_digits=12, decimal_places=2, read_only=True,
+    )
+    business_id = serializers.UUIDField(source='branch_id', read_only=True, allow_null=True)
+
+    class Meta:
+        model = Product
+        fields = [
+            'id', 'name', 'barcode', 'category', 'branch', 'business_id',
+            'selling_price', 'base_price', 'price', 'cost', 'emoji', 'stock',
+        ]
+
+
+class ProductSerializer(serializers.ModelSerializer):
+    """Mahsulot API — is_draft Product da emas, faqat PosCartDraft da."""
+
+    category = serializers.SlugRelatedField(
         slug_field='name', queryset=Category.objects.all(),
     )
-    category_name = CharField(source='category.name', read_only=True)
-    price = DecimalField(source='selling_price', max_digits=12, decimal_places=2, required=False)
-    cost = DecimalField(source='base_price', max_digits=12, decimal_places=2, required=False)
-    profit = SerializerMethodField()
-    status_display = CharField(source='get_status_display', read_only=True)
-    business_id = UUIDField(source='branch_id', read_only=True, allow_null=True)
-    image_url = SerializerMethodField()
-    stock = IntegerField(read_only=True)
+    category_name = serializers.CharField(source='category.name', read_only=True)
+    price = serializers.DecimalField(
+        source='selling_price', max_digits=12, decimal_places=2, required=False,
+    )
+    cost = serializers.DecimalField(
+        source='base_price', max_digits=12, decimal_places=2, required=False,
+    )
+    profit = serializers.SerializerMethodField()
+    status = serializers.SerializerMethodField()
+    status_display = serializers.SerializerMethodField()
+    is_draft = serializers.SerializerMethodField()
+    business_id = serializers.UUIDField(source='branch_id', read_only=True, allow_null=True)
+    image_url = serializers.SerializerMethodField()
 
     class Meta:
         model = Product
         fields = [
             'id', 'name', 'barcode', 'category', 'category_name',
-            'branch', 'business_id', 'price', 'cost', 'profit',
-            'stock', 'min_amount', 'status', 'status_display', # <-- min_amount qo'shildi
-            'created_at', 'updated_at', 'image_url'
+            'branch', 'business_id', 'selling_price', 'base_price', 'price', 'cost',
+            'emoji', 'image', 'image_url', 'profit', 'stock', 'status', 'status_display',
+            'is_draft', 'created_at', 'updated_at',
         ]
         read_only_fields = ('created_at', 'updated_at', 'image_url')
 
@@ -38,11 +72,33 @@ class ProductSerializer(ModelSerializer):
         return obj.image.url
 
     def get_profit(self, obj):
-        if obj.selling_price and obj.base_price:
-            return obj.selling_price - obj.base_price
-        return 0
+        return obj.profit
 
-    def validate_status(self, value):
-        return normalize_choice_label(
-            value, Product.Status.choices, "Holat noto'g'ri"
-        )
+    def get_status(self, obj):
+        if obj.is_draft:
+            return Product.Status.DRAFT
+        if obj.stock <= 0:
+            return Product.Status.OUT_OF_STOCK
+        return Product.Status.AVAILABLE
+
+    def get_status_display(self, obj):
+        labels = dict(Product.Status.choices)
+        return labels.get(self.get_status(obj), '')
+
+    def get_is_draft(self, obj):
+        return getattr(obj, 'is_draft', False)
+
+    def validate_is_draft(self, value):
+        return bool(value)
+
+
+class BranchModelSerializer(serializers.ModelSerializer):
+    phone = UzPhoneField(required=False, allow_blank=True, allow_null=True)
+
+    class Meta:
+        model = Branch
+        fields = ('id', 'name', 'address', 'phone', 'created_at')
+        extra_kwargs = {
+            'id': {'read_only': True},
+            'created_at': {'read_only': True},
+        }

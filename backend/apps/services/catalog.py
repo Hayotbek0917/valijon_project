@@ -62,7 +62,7 @@ def register_catalog_item_as_product(catalog_item, branch, selling_price=None, b
         size=(catalog_item.size or '').strip(),
         unit=(catalog_item.unit or 'dona').strip() or 'dona',
         stock=0,
-        status=Product.Status.AVAILABLE,
+        is_draft=False,
     )
     catalog_item.product = product
     if barcode:

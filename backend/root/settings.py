@@ -11,7 +11,8 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'dev-only-change-in-production')
 
-DEBUG = True
+DEBUG = os.getenv("DEBUG", "true").lower() in ("1", "true", "yes")
+ENABLE_SILK = os.getenv("ENABLE_SILK", "true" if DEBUG else "false").lower() in ("1", "true", "yes")
 ALLOWED_HOSTS = [
     "localhost",
     "127.0.0.1",
@@ -34,12 +35,21 @@ INSTALLED_APPS = [
     "django_filters",
 ]
 
+if ENABLE_SILK:
+    INSTALLED_APPS.append('silk')
+
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+]
+
+if ENABLE_SILK:
+    MIDDLEWARE.append('silk.middleware.SilkyMiddleware')
+
+MIDDLEWARE += [
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
@@ -78,15 +88,19 @@ else:
         }
     }
 
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:5173",
-    "http://127.0.0.1:5173",
-    "http://localhost:5174",
-    "http://127.0.0.1:5174",
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-    "https://corepos.up.railway.app",
-]
+_cors_env = os.getenv("CORS_ALLOWED_ORIGINS", "")
+if _cors_env:
+    CORS_ALLOWED_ORIGINS = [o.strip() for o in _cors_env.split(",") if o.strip()]
+else:
+    CORS_ALLOWED_ORIGINS = [
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "http://localhost:5174",
+        "http://127.0.0.1:5174",
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "https://corepos.up.railway.app",
+    ]
 
 CORS_ALLOW_CREDENTIALS = True
 
@@ -145,7 +159,10 @@ REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework.authentication.SessionAuthentication',
         'rest_framework_simplejwt.authentication.JWTAuthentication',
-    )
+    ),
+    'DEFAULT_THROTTLE_RATES': {
+        'auth': '20/min',
+    },
 }
 
 SPECTACULAR_SETTINGS = {
@@ -169,3 +186,14 @@ from django.db.models import CASCADE, PROTECT, SET_NULL  # noqa: E402
 ON_DELETE_CASCADE = CASCADE
 ON_DELETE_SET_NULL = SET_NULL
 ON_DELETE_PROTECT = PROTECT
+
+# django-silk — faqat dev/profiling (https://github.com/jazzband/django-silk)
+if ENABLE_SILK:
+    SILKY_AUTHENTICATION = True
+    SILKY_AUTHORISATION = True
+    SILKY_PERMISSIONS = lambda user: user.is_staff  # noqa: E731
+    SILKY_MAX_RECORDED_REQUESTS = 10_000
+    SILKY_MAX_REQUEST_BODY_SIZE = 2048
+    SILKY_MAX_RESPONSE_BODY_SIZE = 2048
+    SILKY_META = True
+    SILKY_INTERCEPT_PERCENT = 100

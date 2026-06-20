@@ -4,7 +4,18 @@ from rest_framework import serializers
 from rest_framework.fields import UUIDField, DecimalField, SerializerMethodField, CharField, IntegerField, DateField, JSONField
 from rest_framework.serializers import ModelSerializer, Serializer
 
-User = get_user_model()
+from django.db import transaction
+from rest_framework import serializers
+from rest_framework.serializers import ModelSerializer, Serializer, ValidationError
+from rest_framework.fields import (
+    UUIDField,
+    DecimalField,
+    SerializerMethodField,
+    CharField,
+    BooleanField,
+    IntegerField,
+    DateField,
+)
 
 from apps.models import (
     Supplier,
@@ -20,6 +31,8 @@ from apps.models import (
     DebtCustomers,
 )
 from apps.serializers.choice_utils import normalize_choice_label
+from apps.serializers.fields import UzPhoneField
+from apps.services import create_sale_with_stock, record_credit_charge
 
 
 class SupplierCatalogItemSerializer(ModelSerializer):
@@ -29,18 +42,10 @@ class SupplierCatalogItemSerializer(ModelSerializer):
     class Meta:
         model = SupplierCatalogItem
         fields = [
-            "id",
-            "name",
-            "default_cost",
-            "item_type",
-            "size",
-            "unit",
-            "barcode",
-            "product",
-            "product_id",
-            "created_at",
+            'id', 'name', 'category', 'default_cost', 'item_type', 'size', 'unit',
+            'barcode', 'product', 'product_id',
         ]
-        read_only_fields = ["product", "product_id", "created_at"]
+        read_only_fields = ['product', 'product_id']
 
 
 class SupplierSerializer(ModelSerializer):
@@ -48,13 +53,22 @@ class SupplierSerializer(ModelSerializer):
 
     class Meta:
         model = Supplier
-        fields = ["id", "name", "phone", "address", "status", "total_orders", "business_id"]
+        fields = [
+            'id', 'branch', 'business_id', 'name', 'phone', 'address',
+            'agent_name', 'agent_phone', 'total_orders', 'status', 'catalog',
+        ]
+        read_only_fields = ['total_orders']
+
+    def validate_status(self, value):
+        return normalize_choice_label(
+            value, Supplier.Status.choices, "Holat noto'g'ri"
+        )
 
 
 class WarehouseSerializer(ModelSerializer):
     class Meta:
         model = Warehouse
-        fields = ["id", "name", "branch"]
+        fields = ['id', 'branch', 'business_id', 'name']
 
 
 class InventoryItemSerializer(ModelSerializer):
@@ -63,7 +77,7 @@ class InventoryItemSerializer(ModelSerializer):
 
     class Meta:
         model = InventoryItem
-        fields = ["id", "product", "product_name", "warehouse", "warehouse_name", "quantity"]
+        fields = ['id', 'product', 'product_id', 'warehouse', 'warehouse_id', 'quantity']
 
 
 class SaleLineSerializer(ModelSerializer):
@@ -78,34 +92,39 @@ class SaleSerializer(ModelSerializer):
     class Meta:
         model = Sale
         fields = [
-            "id",
-            "branch",
-            "external_id",
-            "date",
-            "time",
-            "amount",
-            "method",
-            "cashier",
-            "cashier_name",
-            "items",
-            "lines",
+            'id', 'branch', 'business_id', 'external_id', 'date', 'time',
+            'amount', 'method', 'cashier', 'cashier_name', 'items', 'lines',
+            'pos_draft_id', 'customer_name', 'customer_phone', 'credit_account_id',
+            'create_new_credit_account', 'payment_breakdown',
         ]
+
+    def create(self, validated_data):
+        lines_data = validated_data.pop('lines', [])
+        pos_draft_id = validated_data.pop('pos_draft_id', None)
+        customer_name = (validated_data.pop('customer_name', '') or '').strip()
+        customer_phone = validated_data.pop('customer_phone', '') or ''
+        credit_account_id = validated_data.pop('credit_account_id', None)
+        create_new_credit_account = validated_data.pop('create_new_credit_account', False)
+        method = validated_data.get('method', 'Naqd')
+
+        if method == 'Nasiya' and not credit_account_id and not customer_name:
+            raise serializers.ValidationError({'customer_name': 'Nasiya uchun mijozni tanlang yoki ismini kiriting'})
+
+        with transaction.atomic():
+            sale = create_sale_with_stock(
+                validated_data, lines_data, exclude_draft_id=pos_draft_id
+            )
 
 
 class PosCartDraftSerializer(ModelSerializer):
     class Meta:
         model = PosCartDraft
         fields = [
-            "id",
-            "branch",
-            "cashier",
-            "label",
-            "pay_method",
-            "customer_name",
-            "items",
-            "created_at",
-            "updated_at",
+            'id', 'branch', 'business_id', 'customer_name', 'phone', 'balance',
+            'transactions',
         ]
+        read_only_fields = ['balance']
+
 
 
 class PurchaseOrderLineSerializer(ModelSerializer):
@@ -120,78 +139,78 @@ class PurchaseOrderSerializer(ModelSerializer):
     class Meta:
         model = PurchaseOrder
         fields = [
-            "id",
-            "branch",
-            "external_id",
-            "supplier",
-            "supplier_name",
-            "date",
-            "receipt_date",
-            "total",
-            "status",
-            "lines",
+            'id', 'branch', 'business_id', 'external_id', 'supplier', 'supplier_id',
+            'supplier_name', 'date', 'receipt_date', 'total', 'status', 'lines',
         ]
 
+    def create(self, validated_data):
+        lines_data = validated_data.pop('lines', [])
+        order = PurchaseOrder.objects.create(**validated_data)
+        for line in lines_data:
+            PurchaseOrderLine.objects.create(order=order, **line)
+        return order
 
-class PurchaseReceiveLineSerializer(Serializer):
-    line_id = UUIDField()
-    received_qty = IntegerField(min_value=0)
-    selling_price = DecimalField(max_digits=12, decimal_places=2, required=False, allow_null=True)
-    barcode = CharField(required=False, allow_blank=True, allow_null=True)
+    def validate_status(self, value):
+        return normalize_choice_label(
+            value, PurchaseOrder.Status.choices, "Holat noto'g'ri"
+        )
 
 
-class PurchaseReceiveSerializer(Serializer):
-    warehouse_id = UUIDField()
-    receipt_date = DateField(required=False, allow_null=True)
+class PurchaseReceiveLineSerializer(serializers.Serializer):
+    line_id = serializers.IntegerField()
+    received_qty = serializers.IntegerField(min_value=0)
+    damaged_qty = serializers.IntegerField(min_value=0, required=False, default=0)
+
+
+class PurchaseReceiveSerializer(serializers.Serializer):
+    warehouse = serializers.IntegerField()
+    receipt_date = serializers.DateField(required=False)
     lines = PurchaseReceiveLineSerializer(many=True)
 
 
-
 class AgentOrderSerializer(ModelSerializer):
-    items = JSONField(required=False)
+    business_id = UUIDField(source="branch_id", read_only=True)
 
     class Meta:
         model = AgentOrder
-        fields = ["id", "branch", "supplier", "agent_name", "customer_name", "total", "date", "items"]
+        fields = [
+            'id', 'branch', 'business_id', 'agent', 'agent_name',
+            'customer_name', 'items', 'total', 'date',
+        ]
+
+    def create(self, validated_data):
+        agent = validated_data.get('agent')
+        if agent and not validated_data.get('agent_name'):
+            validated_data['agent_name'] = agent.name
+        return super().create(validated_data)
 
 
-
-class UserStaffSerializer(ModelSerializer):
-    branch_name = CharField(source="branch.name", read_only=True)
+class UserStaffSerializer(serializers.ModelSerializer):
+    name = serializers.CharField(source='full_name', read_only=True)
+    phone = UzPhoneField(read_only=True)
+    branch_name = serializers.CharField(source='branch.name', read_only=True, default='')
 
     class Meta:
         model = User
-        fields = ["id", "phone", "first_name", "last_name", "role", "branch", "branch_name", "is_active"]
-
-
-
-class CreditAccountSerializer(ModelSerializer):
-    phone_display = SerializerMethodField()
-    balance = DecimalField(max_digits=14, decimal_places=2, read_only=True)
-
-    class Meta:
-        model = DebtCustomers
-        fields = ["id", "customer_name", "phone", "phone_display", "balance"]
-
-    def get_phone_display(self, obj):
-        if not obj.phone:
-            return ""
-        from apps.validators.phone import format_uz_phone_display
-        return format_uz_phone_display(obj.phone)
-
-
-class CreditPaymentSerializer(Serializer):
-    amount = DecimalField(max_digits=14, decimal_places=2)
-    note = CharField(required=False, allow_blank=True, default="")
+        fields = [
+            'id', 'username', 'name', 'first_name', 'last_name',
+            'phone', 'role', 'is_active', 'branch', 'branch_name', 'created_at',
+        ]
+        read_only_fields = fields
 
 
 class StaffCreateSerializer(Serializer):
-    first_name = CharField()
-    last_name = CharField(required=False, allow_blank=True, default="")
-    phone = CharField(required=True)
+    username = CharField()
     password = CharField(write_only=True)
+    name = CharField()
+    phone = CharField(required=False, allow_blank=True)
     role = CharField()
-    branch = UUIDField(required=False, allow_null=True)
+
+    def validate_username(self, value):
+        value = value.strip().lower()
+        if User.objects.filter(username__iexact=value).exists():
+            raise ValidationError('Bu login band')
+        return value
 
     def validate_role(self, value):
         labels = {
@@ -200,6 +219,7 @@ class StaffCreateSerializer(Serializer):
             "manager": User.Role.MANAGER,
             "cashier": User.Role.CASHIER,
             "kassir": User.Role.CASHIER,
+            "admin": User.Role.ADMIN,
         }
         role = labels.get((value or "").strip().casefold())
         if role:
@@ -223,14 +243,30 @@ class StaffCreateSerializer(Serializer):
         return normalized
 
     def create(self, validated_data):
-        from apps.models import Branch
+        import random
 
-        role = validated_data.get("role")
-        branch_id = validated_data.get("branch")
+        from apps.permission import user_has_global_branch_access
 
-        branch = Branch.objects.filter(id=branch_id).first()
-        if not branch and role in [User.Role.MANAGER, User.Role.CASHIER]:
-            branch = Branch.objects.first()
+        request = self.context.get('request')
+        actor = request.user if request else None
+        name = validated_data['name'].strip()
+        parts = name.split(' ', 1)
+        first_name = parts[0]
+        last_name = parts[1] if len(parts) > 1 else ''
+
+        branch = actor.branch if actor else None
+        if actor and user_has_global_branch_access(actor):
+            branch = None
+
+        phone = (validated_data.get('phone') or '').strip()
+        if not phone:
+            for _ in range(200):
+                candidate = str(random.randint(910000000, 919999999))
+                if not User.objects.filter(phone=candidate).exists():
+                    phone = candidate
+                    break
+            if not phone:
+                raise ValidationError({'phone': 'Telefon raqam yaratib bo\'lmadi'})
 
         return User.objects.create_user(
             phone=validated_data["phone"],

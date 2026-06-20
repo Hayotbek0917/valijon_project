@@ -5,6 +5,7 @@ requires-python = ">=3.13"
 dependencies = [
     "dj-database-url>=3.1.2",
     "django>=6.0.4",
+    "django-cors-headers>=4.9.0",
     "django-filter>=25.2",
     "djangorestframework>=3.17.1",
     "djangorestframework-simplejwt>=5.5.1",
@@ -16,24 +17,15 @@ dependencies = [
     "gunicorn>=23.0.0",
 ]
 
-
-
 [dependency-groups]
 dev = [
-    "pytest>=9.1.1",
-    "pytest-django>=4.12.0",
-    "djangorestframework-stubs>=3.17.0",
-    "npm>=0.1.1",
-    "ruff>=0.15.18",
+    "django-silk>=5.5.0",
+    "ruff>=0.11.0",
 ]
 
-
-[tool.pytest.ini_options]
-DJANGO_SETTINGS_MODULE = "root.settings"
-python_files = ["tests.py", "test_*.py", "*_tests.py"]
-
-
 [tool.ruff]
-line-length = 120
-exclude = ['__init__.py']
+line-length = 100
+target-version = "py313"
 
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP"]

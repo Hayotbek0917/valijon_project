@@ -1,11 +1,10 @@
 from django.db.models import ForeignKey, CASCADE, CharField, PositiveIntegerField
 from django.db.models.constraints import UniqueConstraint
 
-from apps.models import TimeStampedModel
-from apps.models.base_model import BaseModel
+from apps.models.base_model import BigIntTimestampedModel, BigIntModel
 
 
-class Warehouse(TimeStampedModel):
+class Warehouse(BigIntModel):
     """Ombor / sklad — filial ichidagi saqlash joyi."""
 
     branch = ForeignKey("apps.Branch", CASCADE, related_name="warehouses")
@@ -15,12 +14,14 @@ class Warehouse(TimeStampedModel):
         return self.name
 
 
-class InventoryItem(BaseModel):
+class InventoryItem(BigIntModel):
     product = ForeignKey("apps.Product", CASCADE, related_name="inventory_items")
     warehouse = ForeignKey("apps.Warehouse", CASCADE, related_name="items", verbose_name="Ombor")
     quantity = PositiveIntegerField(default=0, verbose_name="Miqdor")
 
     class Meta:
+        verbose_name = "Ombor Maxsuloti"
+        verbose_name_plural = "Ombor Maxsulotlari"
         constraints = [
             UniqueConstraint(
                 fields=["product", "warehouse"],

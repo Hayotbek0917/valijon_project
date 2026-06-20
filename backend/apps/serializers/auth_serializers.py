@@ -1,11 +1,13 @@
 from django.contrib.auth import authenticate
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework.exceptions import ValidationError
 from rest_framework.fields import CharField
 from rest_framework.serializers import ModelSerializer, Serializer
 
 from apps.models import User
 from apps.serializers.fields import UzPhoneField
-from apps.validators.phone import normalize_uz_phone
+from apps.validators.phone import normalize_uz_phone, format_uz_phone_display
 
 
 class RegisterModelSerializer(ModelSerializer):
@@ -23,9 +25,16 @@ class RegisterModelSerializer(ModelSerializer):
             'id': {'read_only': True},
         }
 
-    def validate_phone(self, value):
-        if User.objects.filter(phone=value).exists():
-            raise ValidationError('Bu telefon raqami allaqachon ro\'yxatdan o\'tgan.')
+    def validate_username(self, value):
+        if not value:
+            return value
+        value = value.strip().lower()
+        if User.objects.filter(username=value).exists():
+            raise ValidationError('Bu login band')
+        return value
+
+    def validate_password(self, value):
+        validate_password(value)
         return value
 
     def validate(self, attrs):
@@ -37,38 +46,48 @@ class RegisterModelSerializer(ModelSerializer):
 
     def create(self, validated_data):
         validated_data.pop('confirm_password', None)
+        phone = validated_data.get('phone')
+        if phone and not validated_data.get('username'):
+            validated_data['username'] = phone
         return User.objects.create_user(**validated_data)
 
 
 class LoginModelSerializer(Serializer):
-    phone = CharField()
+    username = CharField(required=False, allow_blank=True)
+    phone = CharField(required=False, allow_blank=True)
     password = CharField(write_only=True)
 
     def validate(self, attrs):
-        raw_phone = attrs.get("phone", "")
+        raw_login = (attrs.get('username') or attrs.get('phone') or '').strip()
+        password = attrs.get('password')
+
+        if not raw_login:
+            raise ValidationError('Login yoki telefon kiritilishi shart')
+
+        candidates = [raw_login, raw_login.lower()]
         try:
-            normalized = normalize_uz_phone(raw_phone)
-        except Exception:
-            normalized = raw_phone
+            local = normalize_uz_phone(raw_login)
+            candidates.extend([local, f'+998{local}', format_uz_phone_display(local)])
+        except DjangoValidationError:
+            pass
 
-        password = attrs.get("password")
-
-        # Telefon raqami (username o'rnida) orqali tekshiramiz
-        user = authenticate(
-            request=self.context.get('request'),
-            username=normalized,
-            password=password,
-        )
-
-        if not user and raw_phone:
+        user = None
+        for login_id in dict.fromkeys(c for c in candidates if c):
             user = authenticate(
                 request=self.context.get('request'),
-                username=raw_phone,
+                username=login_id,
                 password=password,
             )
+            if user:
+                break
 
         if not user:
-            raise ValidationError('Login yoki parol xato')
+            lookup = User.objects.filter(username__iexact=raw_login).first()
+            if lookup and lookup.check_password(password):
+                user = lookup
+
+        if not user:
+            raise ValidationError('Telefon raqam yoki parol xato')
 
         if not user.is_active:
             raise ValidationError('Foydalanuvchi aktiv emas')
