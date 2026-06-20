@@ -1,0 +1,18 @@
+# Repo-ildiz konteksti uchun (Railway Root Directory = "/"). Backend'ni quradi.
+FROM ghcr.io/astral-sh/uv:alpine
+
+RUN apk add --no-cache tzdata
+ENV TZ=Asia/Tashkent
+
+WORKDIR /app
+
+COPY backend/pyproject.toml backend/uv.lock ./
+RUN uv sync --frozen
+
+COPY backend/ .
+RUN chmod +x scripts/railway-entrypoint.sh
+
+ENV PORT=8000
+EXPOSE 8000
+
+CMD ["sh", "scripts/railway-entrypoint.sh"]
