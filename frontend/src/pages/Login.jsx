@@ -21,7 +21,7 @@ const inputSx = {
 export default function Login() {
   const { login } = useAuth();
   const navigate = useNavigate();
-  const [phone, setPhone] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
@@ -31,7 +31,7 @@ export default function Login() {
     e.preventDefault();
     setError('');
     setLoading(true);
-    const result = await login(phone, password);
+    const result = await login(username, password);
     setLoading(false);
     if (result.ok) {
       navigate(getHomePath(result.user.role), { replace: true });
@@ -91,7 +91,7 @@ export default function Login() {
             <div className="mb-8">
               <h1 className="text-2xl font-bold text-gray-900">Kirish</h1>
               <p className="text-sm text-gray-500 mt-1.5">
-                Tizimga kirish uchun telefon raqam va parolingizni kiriting
+                Login va parolingizni kiriting (masalan: m001.admin)
               </p>
             </div>
 
@@ -103,20 +103,20 @@ export default function Login() {
               )}
 
               <TextField
-                label="Telefon raqam"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
+                label="Login"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
                 fullWidth
                 required
-                autoComplete="tel"
-                placeholder="901234567"
+                autoComplete="username"
+                placeholder="superadmin yoki m001.admin"
                 autoFocus
                 margin="normal"
                 sx={{ ...inputSx, mt: 0, mb: 0 }}
                 InputProps={{
                   startAdornment: (
                     <InputAdornment position="start">
-                      <Phone style={{ color: '#94a3b8', fontSize: 20 }} />
+                      <Person style={{ color: '#94a3b8', fontSize: 20 }} />
                     </InputAdornment>
                   ),
                 }}

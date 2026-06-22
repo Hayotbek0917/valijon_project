@@ -12,10 +12,10 @@ from django.db.models import (
 )
 from django.db.models.constraints import UniqueConstraint
 
-from apps.models.base_model import BaseModel, CreatedModel
+from apps.models.base_model import BigIntTimestampedModel, BigIntModel
 
 
-class PurchaseOrder(CreatedModel):
+class PurchaseOrder(BigIntTimestampedModel):
     """Xarid Buyurtmasi"""
 
     class Status(TextChoices):
@@ -59,7 +59,7 @@ class PurchaseOrder(CreatedModel):
         super().save(*args, **kwargs)
 
 
-class PurchaseOrderLine(BaseModel):
+class PurchaseOrderLine(BigIntModel):
     """Xarid Satri"""
 
     order = ForeignKey("apps.PurchaseOrder", CASCADE, related_name="lines", verbose_name="Buyurtma")

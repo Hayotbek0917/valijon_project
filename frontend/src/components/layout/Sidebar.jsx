@@ -18,6 +18,7 @@ import {
   Menu,
   Groups,
   AccountBalanceWallet,
+  MonitorHeart,
 } from '@mui/icons-material';
 import { Avatar, Collapse, IconButton } from '@mui/material';
 import { useApp } from '../../context/AppContext';
@@ -37,6 +38,7 @@ const navIcons = {
   'ai-analytics': <Analytics fontSize="small" />,
   expire: <WarningAmber fontSize="small" />,
   reports: <Assessment fontSize="small" />,
+  monitor: <MonitorHeart fontSize="small" />,
   settings: <Settings fontSize="small" />,
   staff: <Groups fontSize="small" />,
 };

@@ -11,4 +11,9 @@ urlpatterns = [
     path('redoc', SpectacularRedocView.as_view(url_name='schema'), name='redoc'),
     path("admin/", admin.site.urls),
     path("api/v1/", include('apps.urls')),
-] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+]
+
+if settings.ENABLE_SILK:
+    urlpatterns.append(path('silk/', include('silk.urls', namespace='silk')))
+
+urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

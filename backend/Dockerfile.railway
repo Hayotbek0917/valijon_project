@@ -9,9 +9,9 @@ COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen
 
 COPY . .
+RUN chmod +x scripts/railway-entrypoint.sh
 
-RUN chmod +x scripts/docker-entrypoint.sh
-
+ENV PORT=8000
 EXPOSE 8000
 
-ENTRYPOINT ["sh", "scripts/docker-entrypoint.sh"]
+CMD ["sh", "scripts/railway-entrypoint.sh"]

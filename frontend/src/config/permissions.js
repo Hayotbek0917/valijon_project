@@ -59,3 +59,20 @@ export function canEditProducts(role) {
 export function canManageUsers(role) {
   return getPermissions(role).manageUsers;
 }
+
+/** Platform egasi — faqat ko'rish */
+export function resolvePermissions(user) {
+  const base = getPermissions(user?.role);
+  if (user?.isGlobalAdmin) {
+    return {
+      ...base,
+      manageUsers: false,
+      editProducts: false,
+      systemSettings: false,
+      viewMarketReadOnly: true,
+      viewNetProfitReports: true,
+      viewProfit: true,
+    };
+  }
+  return base;
+}

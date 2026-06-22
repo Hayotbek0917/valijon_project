@@ -67,6 +67,19 @@ export function normalizeRole(role) {
   return role;
 }
 
+export function mapAgentsFromSuppliers(suppliers) {
+  return (suppliers || [])
+    .filter((s) => s.agentName)
+    .map((s) => ({
+      id: s.id,
+      name: s.agentName,
+      phone: s.agentPhone || s.phone || '',
+      supplierId: s.id,
+      supplierName: s.name,
+      businessId: s.businessId,
+    }));
+}
+
 export function mapUserFromApi(u) {
   return {
     id: u.id,
@@ -75,6 +88,8 @@ export function mapUserFromApi(u) {
     role: normalizeRole(u.role),
     active: u.active ?? u.is_active ?? true,
     branch: u.branch ?? null,
+    branchName: u.branch_name ?? u.branchName ?? null,
+    isGlobalAdmin: u.is_global_admin ?? false,
   };
 }
 
@@ -128,6 +143,8 @@ export function mapSupplierFromApi(s) {
     email: s.email || '',
     address: s.address || '',
     category: s.category || '',
+    agentName: s.agent_name || '',
+    agentPhone: s.agent_phone || '',
     totalOrders: s.total_orders ?? 0,
     status: supplierStatusLabel(s.status),
     businessId: s.business_id || s.branch,

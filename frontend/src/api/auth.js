@@ -20,10 +20,10 @@ export function storeUser(user) {
   }
 }
 
-export async function loginRequest({ phone, password }) {
-  const data = await apiRequest('/auth/login', {
+export async function loginRequest(username, password) {
+  const data = await apiRequest('/api/v1/auth/login', {
     method: 'POST',
-    body: JSON.stringify({ phone: phone.trim(), password }),
+    body: JSON.stringify({ username: username.trim().toLowerCase(), password }),
   });
 
   setTokens(data.access || data.access_token, data.refresh || data.refresh_token);
@@ -42,12 +42,12 @@ export async function createStaffUser(data) {
   const firstName = nameParts[0] || '';
   const lastName = nameParts.slice(1).join(' ') || '';
 
-  const res = await apiRequest('/users/create', {
+  const res = await apiRequest('/api/v1/users/create', {
     method: 'POST',
     body: JSON.stringify({
-      first_name: firstName,
-      last_name: lastName,
+      username: data.username,
       password: data.password,
+      name: data.name,
       role: data.role,
       phone: data.phone || '',
     }),
@@ -56,12 +56,16 @@ export async function createStaffUser(data) {
 }
 
 export async function validateSession() {
-  await apiRequest('/users?page_size=1');
+  await apiRequest('/api/v1/users?page_size=1');
   return getStoredUser();
 }
 
-export async function fetchStaffUsers() {
+export async function fetchStaffUsers(branchId = null) {
   const { fetchAll } = await import('./client');
-  const rows = await fetchAll('/users');
+  const params = new URLSearchParams();
+  if (branchId) params.set('branch', branchId);
+  const qs = params.toString();
+  const path = qs ? `/api/v1/users?${qs}` : '/api/v1/users';
+  const rows = await fetchAll(path);
   return rows.map(mapUserFromApi);
 }

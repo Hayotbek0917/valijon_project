@@ -32,6 +32,7 @@ export const NAV_BOTTOM = [
   { path: '/ai-analytics', label: 'AI Analytica', title: 'AI Analytica', icon: 'ai-analytics', roles: FINANCE },
   { path: '/expire-management', label: 'Yaroqlilik Mudati', title: 'Yaroqlilik Mudati', icon: 'expire', roles: OPS },
   { path: '/reports', label: 'Hisobot', title: 'Hisobot', icon: 'reports', roles: ALL_EXCEPT_CASHIER },
+  { path: '/magazin-monitor', label: 'Magazinlar holati', title: 'Magazin monitor', icon: 'monitor', roles: [ROLES.ADMIN] },
   { path: '/staff', label: 'Xodimlar', title: 'Xodimlar', icon: 'staff', roles: [ROLES.ADMIN, ROLES.BOSS, ROLES.MANAGER] },
   { path: '/settings', label: 'Sozlamalar', title: 'Sozlamalar', icon: 'settings', roles: [ROLES.ADMIN, ROLES.BOSS, ROLES.MANAGER] },
 ];

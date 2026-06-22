@@ -14,6 +14,7 @@ import Reports from '../pages/Reports';
 import Settings from '../pages/Settings';
 import Staff from '../pages/Staff';
 import CreditLedger from '../pages/CreditLedger';
+import MagazinMonitor from '../pages/MagazinMonitor';
 
 function Guard({ children }) {
   return <ProtectedRoute>{children}</ProtectedRoute>;
@@ -36,6 +37,7 @@ export default function AppRoutes() {
       <Route path="/expire-management" element={<Guard><ExpireManagement /></Guard>} />
       <Route path="/reports" element={<Guard><Reports /></Guard>} />
       <Route path="/staff" element={<Guard><Staff /></Guard>} />
+      <Route path="/magazin-monitor" element={<Guard><MagazinMonitor /></Guard>} />
       <Route path="/settings" element={<Guard><Settings /></Guard>} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

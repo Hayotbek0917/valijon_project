@@ -1,56 +1,109 @@
 import { apiRequest } from './client';
 import { fetchAll } from './client';
+import { normalizeUzPhone } from '../utils/phone';
 import {
-  mapAgentFromApi,
-  mapAgentOrderFromApi,
   mapBranchToBusiness,
-  mapCategoryFromApi,
-  mapCustomerFromApi,
-  mapInventoryFromApi,
   mapProductFromApi,
-  mapPurchaseOrderFromApi,
-  mapSaleFromApi,
-  mapSupplierFromApi,
-  mapCatalogItemFromApi,
-  mapCreditAccountFromApi,
   mapWarehouseFromApi,
+  mapInventoryFromApi,
+  mapSupplierFromApi,
+  mapAgentsFromSuppliers,
+  mapCatalogItemFromApi,
+  mapPurchaseOrderFromApi,
+  mapCreditAccountFromApi,
+  mapAgentOrderFromApi,
+  mapSaleFromApi,
+  mapCategoryFromApi,
   payMethodCode,
   payMethodLabel,
 } from './mappers';
 
-export async function loadPosData() {
-  const [
-    branches, products, warehouses, inventory, suppliers,
-    dealerOrders, customers, creditAccounts, agents, agentOrders, sales, categories,
-  ] = await Promise.all([
-    fetchAll('/branches'),
-    fetchAll('/products'),
-    fetchAll('/warehouses'),
-    fetchAll('/inventory'),
-    fetchAll('/suppliers'),
-    fetchAll('/purchase-orders'),
-    fetchAll('/customers'),
-    fetchAll('/credit-accounts'),
-    fetchAll('/agents'),
-    fetchAll('/agent-orders'),
-    fetchAll('/sales'),
-    fetchAll('/categories'),
+function scopedPath(base, branchId, extra = {}) {
+  const params = new URLSearchParams();
+  if (branchId) params.set('branch', branchId);
+  params.set('page_size', '2000');
+  Object.entries(extra).forEach(([key, value]) => {
+    if (value != null && value !== '') params.set(key, value);
+  });
+  const qs = params.toString();
+  return qs ? `${base}?${qs}` : base;
+}
+
+const BRANCH_STORAGE_KEY = 'pos_selected_branch';
+
+function pickEffectiveBranch(branches, branchId) {
+  const ids = new Set(branches.map((b) => String(b.id)));
+  let effective = branchId ? String(branchId) : null;
+
+  if (effective && !ids.has(effective)) {
+    effective = null;
+    try {
+      localStorage.removeItem(BRANCH_STORAGE_KEY);
+    } catch {
+      /* ignore */
+    }
+  }
+
+  if (!effective) {
+    const mag = branches.find((b) => b.name?.startsWith('Magazin'));
+    effective = mag?.id ? String(mag.id) : (branches[0]?.id ? String(branches[0].id) : null);
+  } else {
+    const current = branches.find((b) => String(b.id) === effective);
+    if (current && !current.name?.startsWith('Magazin')) {
+      const mag = branches.find((b) => b.name?.startsWith('Magazin'));
+      if (mag) effective = String(mag.id);
+    }
+  }
+
+  return effective;
+}
+
+export async function loadPosEssentials(branchId = null) {
+  const branches = await fetchAll('/api/v1/branches');
+  const effectiveBranch = pickEffectiveBranch(branches, branchId);
+
+  const [products, warehouses, inventory, suppliers, categories] = await Promise.all([
+    fetchAll(scopedPath('/api/v1/products', effectiveBranch)),
+    fetchAll(scopedPath('/api/v1/warehouses', effectiveBranch)),
+    fetchAll(scopedPath('/api/v1/inventory', effectiveBranch)),
+    fetchAll(scopedPath('/api/v1/suppliers', effectiveBranch)),
+    fetchAll('/api/v1/categories'),
   ]);
+
+  const mappedSuppliers = suppliers.map(mapSupplierFromApi);
 
   return {
     businesses: branches.map(mapBranchToBusiness),
+    activeBranchId: effectiveBranch,
     products: products.map(mapProductFromApi),
     warehouses: warehouses.map(mapWarehouseFromApi),
     inventory: inventory.map(mapInventoryFromApi),
-    suppliers: suppliers.map(mapSupplierFromApi),
-    dealerOrders: dealerOrders.map(mapPurchaseOrderFromApi),
-    customers: customers.map(mapCustomerFromApi),
-    creditAccounts: creditAccounts.map(mapCreditAccountFromApi),
-    agents: agents.map(mapAgentFromApi),
-    agentOrders: agentOrders.map(mapAgentOrderFromApi),
-    sales: sales.map(mapSaleFromApi),
+    suppliers: mappedSuppliers,
+    agents: mapAgentsFromSuppliers(mappedSuppliers),
     categories: categories.map(mapCategoryFromApi),
   };
+}
+
+export async function loadPosHeavy(activeBranchId) {
+  const [dealerOrders, creditAccounts, agentOrders, sales] = await Promise.all([
+    fetchAll(scopedPath('/api/v1/purchase-orders', activeBranchId)),
+    fetchAll(scopedPath('/api/v1/credit-accounts', activeBranchId)),
+    fetchAll(scopedPath('/api/v1/agent-orders', activeBranchId)),
+    fetchAll(scopedPath('/api/v1/sales', activeBranchId, { days: '35' })),
+  ]);
+
+  return {
+    dealerOrders: dealerOrders.map(mapPurchaseOrderFromApi),
+    creditAccounts: creditAccounts.map(mapCreditAccountFromApi),
+    agentOrders: agentOrders.map(mapAgentOrderFromApi),
+    sales: sales.map(mapSaleFromApi),
+  };
+}
+
+export async function loadPosData(branchId = null) {
+  const essentials = await loadPosEssentials(branchId);
+  const heavy = await loadPosHeavy(essentials.activeBranchId);
+  return { ...essentials, ...heavy };
 }
 
 export async function registerCatalogProduct(supplierId, catalogItemId, options = {}) {
@@ -85,7 +138,7 @@ export async function createSupplier(branchId, data) {
       barcode: item.barcode || '',
     })),
   };
-  const res = await apiRequest('/suppliers', { method: 'POST', body: JSON.stringify(payload) });
+  const res = await apiRequest('/api/v1/suppliers', { method: 'POST', body: JSON.stringify(payload) });
   return mapSupplierFromApi(res);
 }
 
@@ -125,7 +178,7 @@ export async function createPurchaseOrder(branchId, data) {
       cost_price: item.costPrice,
     })),
   };
-  const res = await apiRequest('/purchase-orders', { method: 'POST', body: JSON.stringify(payload) });
+  const res = await apiRequest('/api/v1/purchase-orders', { method: 'POST', body: JSON.stringify(payload) });
   return mapPurchaseOrderFromApi(res);
 }
 
@@ -182,7 +235,7 @@ export async function createAgent(branchId, data) {
     supplier: data.supplierId || null,
     supplier_name: data.supplierName || '',
   };
-  const res = await apiRequest('/agents', { method: 'POST', body: JSON.stringify(payload) });
+  const res = await apiRequest('/api/v1/agents', { method: 'POST', body: JSON.stringify(payload) });
   return mapAgentFromApi(res);
 }
 
@@ -200,12 +253,12 @@ export function mapPosDraftFromApi(d) {
 
 export async function fetchPosDrafts(branchId) {
   const qs = branchId ? `?branch=${branchId}` : '';
-  const all = await fetchAll(`/pos-drafts${qs}`);
+  const all = await fetchAll(`/api/v1/pos-drafts${qs}`);
   return all.map(mapPosDraftFromApi);
 }
 
 export async function createPosDraft(branchId, data) {
-  const res = await apiRequest('/pos-drafts', {
+  const res = await apiRequest('/api/v1/pos-drafts', {
     method: 'POST',
     body: JSON.stringify({
       branch: branchId,
@@ -242,7 +295,7 @@ export async function createSale(branchId, data) {
       unit_price: i.price,
     })),
   };
-  const res = await apiRequest('/sales', { method: 'POST', body: JSON.stringify(payload) });
+  const res = await apiRequest('/api/v1/sales', { method: 'POST', body: JSON.stringify(payload) });
   return mapSaleFromApi(res);
 }
 
@@ -255,7 +308,7 @@ export async function payCreditAccount(accountId, amount, note = '') {
 }
 
 export async function fetchPurchaseOrderDbId(externalId) {
-  const all = await fetchAll('/purchase-orders');
+  const all = await fetchAll('/api/v1/purchase-orders');
   const found = all.find((o) => o.external_id === externalId);
   return found?.id ?? null;
 }
