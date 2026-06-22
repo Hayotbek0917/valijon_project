@@ -1,25 +1,32 @@
-import random
 from django.contrib.auth import get_user_model
 from rest_framework import serializers
-from rest_framework.fields import UUIDField, DecimalField, SerializerMethodField, CharField, IntegerField, DateField, JSONField
+from rest_framework.fields import (
+    UUIDField,
+    DecimalField,
+    SerializerMethodField,
+    CharField,
+    IntegerField,
+    DateField,
+    JSONField,
+)
 from rest_framework.serializers import ModelSerializer, Serializer
 
-User = get_user_model()
-
 from apps.models import (
-    Supplier,
     SupplierCatalogItem,
+    Supplier,
     Warehouse,
     InventoryItem,
-    Sale,
     SaleLine,
+    Sale,
     PosCartDraft,
-    PurchaseOrder,
     PurchaseOrderLine,
+    PurchaseOrder,
     AgentOrder,
     DebtCustomers,
 )
 from apps.serializers.choice_utils import normalize_choice_label
+
+User = get_user_model()
 
 
 class SupplierCatalogItemSerializer(ModelSerializer):
@@ -28,18 +35,7 @@ class SupplierCatalogItemSerializer(ModelSerializer):
 
     class Meta:
         model = SupplierCatalogItem
-        fields = [
-            "id",
-            "name",
-            "default_cost",
-            "item_type",
-            "size",
-            "unit",
-            "barcode",
-            "product",
-            "product_id",
-            "created_at",
-        ]
+        fields = ["id", "name", "default_cost", "item_type", "size", "unit", "barcode", "product", "product_id"]
         read_only_fields = ["product", "product_id", "created_at"]
 
 
@@ -95,17 +91,7 @@ class SaleSerializer(ModelSerializer):
 class PosCartDraftSerializer(ModelSerializer):
     class Meta:
         model = PosCartDraft
-        fields = [
-            "id",
-            "branch",
-            "cashier",
-            "label",
-            "pay_method",
-            "customer_name",
-            "items",
-            "created_at",
-            "updated_at",
-        ]
+        fields = ["id", "branch", "cashier", "label", "pay_method", "items", "created_at", "updated_at"]
 
 
 class PurchaseOrderLineSerializer(ModelSerializer):
@@ -133,27 +119,12 @@ class PurchaseOrderSerializer(ModelSerializer):
         ]
 
 
-class PurchaseReceiveLineSerializer(Serializer):
-    line_id = UUIDField()
-    received_qty = IntegerField(min_value=0)
-    selling_price = DecimalField(max_digits=12, decimal_places=2, required=False, allow_null=True)
-    barcode = CharField(required=False, allow_blank=True, allow_null=True)
-
-
-class PurchaseReceiveSerializer(Serializer):
-    warehouse_id = UUIDField()
-    receipt_date = DateField(required=False, allow_null=True)
-    lines = PurchaseReceiveLineSerializer(many=True)
-
-
-
 class AgentOrderSerializer(ModelSerializer):
     items = JSONField(required=False)
 
     class Meta:
         model = AgentOrder
         fields = ["id", "branch", "supplier", "agent_name", "customer_name", "total", "date", "items"]
-
 
 
 class UserStaffSerializer(ModelSerializer):
@@ -164,8 +135,7 @@ class UserStaffSerializer(ModelSerializer):
         fields = ["id", "phone", "first_name", "last_name", "role", "branch", "branch_name", "is_active"]
 
 
-
-class CreditAccountSerializer(ModelSerializer):
+class DebtCustomersSerializer(ModelSerializer):
     phone_display = SerializerMethodField()
     balance = DecimalField(max_digits=14, decimal_places=2, read_only=True)
 
@@ -177,7 +147,21 @@ class CreditAccountSerializer(ModelSerializer):
         if not obj.phone:
             return ""
         from apps.validators.phone import format_uz_phone_display
+
         return format_uz_phone_display(obj.phone)
+
+
+class PurchaseReceiveLineSerializer(Serializer):
+    line_id = UUIDField()
+    received_qty = IntegerField(min_value=0)
+    selling_price = DecimalField(max_digits=12, decimal_places=2, required=False, allow_null=True)
+    barcode = CharField(required=False, allow_blank=True, allow_null=True)
+
+
+class PurchaseReceiveSerializer(Serializer):
+    warehouse_id = UUIDField()
+    receipt_date = DateField(required=False, allow_null=True)
+    lines = PurchaseReceiveLineSerializer(many=True)
 
 
 class CreditPaymentSerializer(Serializer):
@@ -195,11 +179,9 @@ class StaffCreateSerializer(Serializer):
 
     def validate_role(self, value):
         labels = {
-            "boss": User.Role.OWNER,
             "owner": User.Role.OWNER,
             "manager": User.Role.MANAGER,
             "cashier": User.Role.CASHIER,
-            "kassir": User.Role.CASHIER,
         }
         role = labels.get((value or "").strip().casefold())
         if role:
@@ -213,6 +195,7 @@ class StaffCreateSerializer(Serializer):
 
     def validate_phone(self, value):
         from apps.validators.phone import normalize_uz_phone
+
         try:
             normalized = normalize_uz_phone(value)
         except Exception as e:

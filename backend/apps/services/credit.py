@@ -1,7 +1,7 @@
 from decimal import Decimal
 from django.db import transaction
 from rest_framework.exceptions import ValidationError
-from apps.models import CreditAccount, CreditTransaction
+from apps.models import DebtCustomers, CreditTransaction
 from apps.validators.phone import normalize_uz_phone
 
 
@@ -16,7 +16,7 @@ def _find_by_phone(branch, phone):
     norm = _normalize_phone(phone)
     if not norm:
         return None
-    for account in CreditAccount.objects.filter(branch=branch):
+    for account in DebtCustomers.objects.filter(branch=branch):
         if _normalize_phone(account.phone) == norm:
             return account
     return None
@@ -25,8 +25,8 @@ def _find_by_phone(branch, phone):
 def resolve_credit_account(branch, *, account_id=None, customer_name='', phone='', force_new=False):
     if account_id:
         try:
-            return CreditAccount.objects.get(pk=account_id, branch=branch)
-        except CreditAccount.DoesNotExist as exc:
+            return DebtCustomers.objects.get(pk=account_id, branch=branch)
+        except DebtCustomers.DoesNotExist as exc:
             raise ValidationError({'credit_account_id': 'Qarz hisobi topilmadi'}) from exc
 
     name = (customer_name or '').strip()
@@ -34,7 +34,7 @@ def resolve_credit_account(branch, *, account_id=None, customer_name='', phone='
         raise ValidationError({'customer_name': 'Mijoz ismi kerak'})
 
     if force_new:
-        return CreditAccount.objects.create(
+        return DebtCustomers.objects.create(
             branch=branch,
             customer_name=name,
             phone=(phone or '').strip(),
@@ -45,13 +45,13 @@ def resolve_credit_account(branch, *, account_id=None, customer_name='', phone='
     if phone_text:
         try:
             phone_text = normalize_uz_phone(phone_text)
-            account = CreditAccount.objects.filter(branch=branch, phone=phone_text).first()
+            account = DebtCustomers.objects.filter(branch=branch, phone=phone_text).first()
             if account:
                 return account
         except Exception:
             pass
 
-    return CreditAccount.objects.create(
+    return DebtCustomers.objects.create(
         branch=branch,
         customer_name=name,
         phone=phone_text,

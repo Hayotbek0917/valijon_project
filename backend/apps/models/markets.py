@@ -39,7 +39,7 @@ class Market(CreatedModel):
 
 
 class Branch(TimeStampedModel):
-    market = ForeignKey("apps.Market", CASCADE, related_name="branches", verbose_name="Market")
+    market = ForeignKey("apps.Market", CASCADE, null=True, blank=True, related_name="branches", verbose_name="Market")
     name = CharField(max_length=255, verbose_name="Filial nomi")
     address = CharField(max_length=500, blank=True, default="", verbose_name="Manzil")
     phone = CharField(max_length=20, blank=True, validators=[uzbek_phone_validator])

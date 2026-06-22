@@ -1,5 +1,6 @@
 from rest_framework import serializers
-from apps.validators.phone import normalize_uz_phone, validate_uz_phone
+from apps.validators.phone import normalize_uz_phone
+
 
 class UzPhoneField(serializers.CharField):
     """O'zbekiston telefoni — DB da 9 raqam, API javobida +998 prefiksi."""
@@ -8,8 +9,8 @@ class UzPhoneField(serializers.CharField):
         value = super().to_internal_value(data)
         if not value:
             if self.required:
-                raise serializers.ValidationError('Telefon raqami kiritilishi shart')
-            return ''
+                raise serializers.ValidationError("Telefon raqami kiritilishi shart")
+            return ""
         try:
             return normalize_uz_phone(value)
         except Exception as exc:
@@ -17,6 +18,7 @@ class UzPhoneField(serializers.CharField):
 
     def to_representation(self, value):
         if not value:
-            return ''
+            return ""
         from apps.validators.phone import format_uz_phone_display
+
         return format_uz_phone_display(value)

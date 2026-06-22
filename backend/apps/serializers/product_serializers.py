@@ -6,33 +6,52 @@ from apps.models import Category, Product
 from apps.serializers.choice_utils import normalize_choice_label
 
 
+class CategorySerializer(ModelSerializer):
+    class Meta:
+        model = Category
+        fields = ["id", "name"]
+
+
 class ProductSerializer(ModelSerializer):
     category = SlugRelatedField(
-        slug_field='name', queryset=Category.objects.all(),
+        slug_field="name",
+        queryset=Category.objects.all(),
     )
-    category_name = CharField(source='category.name', read_only=True)
-    price = DecimalField(source='selling_price', max_digits=12, decimal_places=2, required=False)
-    cost = DecimalField(source='base_price', max_digits=12, decimal_places=2, required=False)
+    category_name = CharField(source="category.name", read_only=True)
+    price = DecimalField(source="selling_price", max_digits=12, decimal_places=2, required=False)
+    cost = DecimalField(source="base_price", max_digits=12, decimal_places=2, required=False)
     profit = SerializerMethodField()
-    status_display = CharField(source='get_status_display', read_only=True)
-    business_id = UUIDField(source='branch_id', read_only=True, allow_null=True)
+    status_display = CharField(source="get_status_display", read_only=True)
+    business_id = UUIDField(source="branch_id", read_only=True, allow_null=True)
     image_url = SerializerMethodField()
     stock = IntegerField(read_only=True)
 
     class Meta:
         model = Product
         fields = [
-            'id', 'name', 'barcode', 'category', 'category_name',
-            'branch', 'business_id', 'price', 'cost', 'profit',
-            'stock', 'min_amount', 'status', 'status_display', # <-- min_amount qo'shildi
-            'created_at', 'updated_at', 'image_url'
+            "id",
+            "name",
+            "barcode",
+            "category",
+            "category_name",
+            "branch",
+            "business_id",
+            "price",
+            "cost",
+            "profit",
+            "stock",
+            "status",
+            "status_display",
+            "created_at",
+            "updated_at",
+            "image_url",
         ]
-        read_only_fields = ('created_at', 'updated_at', 'image_url')
+        read_only_fields = ("created_at", "updated_at", "image_url")
 
     def get_image_url(self, obj):
         if not obj.image:
-            return ''
-        request = self.context.get('request')
+            return ""
+        request = self.context.get("request")
         if request:
             return request.build_absolute_uri(obj.image.url)
         return obj.image.url
@@ -43,6 +62,5 @@ class ProductSerializer(ModelSerializer):
         return 0
 
     def validate_status(self, value):
-        return normalize_choice_label(
-            value, Product.Status.choices, "Holat noto'g'ri"
-        )
+        # normalize_choice_label orqali validatsiya
+        return normalize_choice_label(value, Product.Status.choices, "Holat noto'g'ri")

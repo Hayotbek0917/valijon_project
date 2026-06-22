@@ -9,6 +9,7 @@ from django.db.models import (
     DateField,
     JSONField,
 )
+from django.utils import timezone
 
 from apps.models import TimeStampedModel
 from apps.models.base_model import CreatedModel, BaseModel, uzbek_phone_validator
@@ -65,21 +66,21 @@ class Agent(BaseModel):
     def save(self, *args, **kwargs):
         if self.phone:
             self.phone = normalize_uz_phone(self.phone)
-        if hasattr(self, 'agent_phone') and self.agent_phone:
+        if hasattr(self, "agent_phone") and self.agent_phone:
             self.agent_phone = normalize_uz_phone(self.agent_phone)
         super().save(*args, **kwargs)
 
 
-class AgentOrder(TimeStampedModel):
+class AgentOrder(BaseModel):
     """Agent orqali kelgan buyurtma - dilerga bog'langan."""
 
     branch = ForeignKey("apps.Branch", on_delete=CASCADE, related_name="agent_orders", verbose_name="Filial")
-    supplier = ForeignKey("apps.Supplier", on_delete=CASCADE, related_name="agent_orders", verbose_name="Diler")
+    supplier = ForeignKey("apps.Supplier", on_delete=CASCADE, null=True,  blank=True, related_name="agent_orders", verbose_name="Diler")
     agent_name = CharField(max_length=50, blank=True, verbose_name="Agent ismi")
     customer_name = CharField(max_length=50, verbose_name="Mijoz ismi")
     items = JSONField(verbose_name="Mahsulotlar", default=list)
     total = DecimalField(max_digits=14, decimal_places=2, verbose_name="Jami summa")
-    date = DateField(verbose_name="Sana")
+    date = DateField(default=timezone.now, verbose_name="Sana")
 
     class Meta:
         ordering = ["-date"]

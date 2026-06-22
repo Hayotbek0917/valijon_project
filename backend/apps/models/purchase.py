@@ -11,7 +11,6 @@ from django.db.models import (
     Q,
 )
 from django.db.models.constraints import UniqueConstraint
-from rest_framework.exceptions import ValidationError
 
 from apps.models.base_model import BaseModel, CreatedModel
 

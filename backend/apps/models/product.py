@@ -11,8 +11,7 @@ from django.db.models import (
 )
 from django.db.models.constraints import UniqueConstraint
 
-from models import BaseModel, TimeStampedModel
-
+from apps.models.base_model import BaseModel, TimeStampedModel
 
 
 class Category(BaseModel):

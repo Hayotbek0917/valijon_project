@@ -16,27 +16,33 @@ class RegisterModelSerializer(ModelSerializer):
     class Meta:
         model = User
         fields = (
-            'id', 'phone', 'first_name', 'last_name',
-            'role', 'branch', 'password', 'confirm_password',
+            "id",
+            "phone",
+            "first_name",
+            "last_name",
+            "role",
+            "branch",
+            "password",
+            "confirm_password",
         )
         extra_kwargs = {
-            'id': {'read_only': True},
+            "id": {"read_only": True},
         }
 
     def validate_phone(self, value):
         if User.objects.filter(phone=value).exists():
-            raise ValidationError('Bu telefon raqami allaqachon ro\'yxatdan o\'tgan.')
+            raise ValidationError("Bu telefon raqami allaqachon ro'yxatdan o'tgan.")
         return value
 
     def validate(self, attrs):
-        password = attrs.get('password')
-        confirm_password = attrs.get('confirm_password')
+        password = attrs.get("password")
+        confirm_password = attrs.get("confirm_password")
         if password != confirm_password:
-            raise ValidationError({'confirm_password': 'Parollar mos emas'})
+            raise ValidationError({"confirm_password": "Parollar mos emas"})
         return attrs
 
     def create(self, validated_data):
-        validated_data.pop('confirm_password', None)
+        validated_data.pop("confirm_password", None)
         return User.objects.create_user(**validated_data)
 
 
@@ -55,23 +61,23 @@ class LoginModelSerializer(Serializer):
 
         # Telefon raqami (username o'rnida) orqali tekshiramiz
         user = authenticate(
-            request=self.context.get('request'),
+            request=self.context.get("request"),
             username=normalized,
             password=password,
         )
 
         if not user and raw_phone:
             user = authenticate(
-                request=self.context.get('request'),
+                request=self.context.get("request"),
                 username=raw_phone,
                 password=password,
             )
 
         if not user:
-            raise ValidationError('Login yoki parol xato')
+            raise ValidationError("Login yoki parol xato")
 
         if not user.is_active:
-            raise ValidationError('Foydalanuvchi aktiv emas')
+            raise ValidationError("Foydalanuvchi aktiv emas")
 
-        attrs['user'] = user
+        attrs["user"] = user
         return attrs
