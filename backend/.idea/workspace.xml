@@ -1,0 +1,428 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="AutoImportSettings">
+    <option name="autoReloadType" value="ALL" />
+  </component>
+  <component name="ChangeListManager">
+    <list default="true" id="6e30f525-a71a-4c68-aa1d-15e6c19f3e68" name="Changes" comment="files changes" />
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="DjangoConsoleOptions" custom-start-script="import sys; print('Python %s on %s' % (sys.version, sys.platform))&#10;import django; print('Django %s' % django.get_version())&#10;sys.path.extend([WORKING_DIR_AND_PYTHON_PATHS])&#10;if 'setup' in dir(django): django.setup()&#10;import django_manage_shell; django_manage_shell.run(PROJECT_ROOT)">
+    <option name="myCustomStartScript" value="import sys; print('Python %s on %s' % (sys.version, sys.platform))&#10;import django; print('Django %s' % django.get_version())&#10;sys.path.extend([WORKING_DIR_AND_PYTHON_PATHS])&#10;if 'setup' in dir(django): django.setup()&#10;import django_manage_shell; django_manage_shell.run(PROJECT_ROOT)" />
+  </component>
+  <component name="FileTemplateManagerImpl">
+    <option name="RECENT_TEMPLATES">
+      <list>
+        <option value="Python Script" />
+      </list>
+    </option>
+  </component>
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$/.." />
+  </component>
+  <component name="GitHubPullRequestSearchHistory">{
+  &quot;lastFilter&quot;: {
+    &quot;state&quot;: &quot;OPEN&quot;,
+    &quot;assignee&quot;: &quot;mahsudbekyuldoshev&quot;
+  }
+}</component>
+  <component name="GithubPullRequestsUISettings">{
+  &quot;selectedUrlAndAccountId&quot;: {
+    &quot;url&quot;: &quot;https://github.com/Hayotbek0917/valijon_project.git&quot;,
+    &quot;accountId&quot;: &quot;50a3098c-60ce-431e-8a3c-d0e97384eabc&quot;
+  }
+}</component>
+  <component name="NextEditCompletionFeaturesState">
+    <decayedCancelled>
+      <entry key="MS100" value="1.4904088739077634" />
+      <entry key="MS500" value="3.301215570847933" />
+      <entry key="S2" value="5.510836284368559" />
+      <entry key="S5" value="6.332680614964116" />
+      <entry key="S10" value="6.6529444140192" />
+      <entry key="S30" value="6.890389739808155" />
+      <entry key="S60" value="7.036122095283915" />
+      <entry key="M2" value="7.285610684049036" />
+      <entry key="M5" value="8.750872238585451" />
+      <entry key="M10" value="16.735200837027783" />
+      <entry key="M15" value="27.9059312949698" />
+      <entry key="M30" value="62.146245669399455" />
+      <entry key="H1" value="117.33786691822944" />
+      <entry key="H2" value="207.23834266829255" />
+      <entry key="H4" value="345.88132749882146" />
+      <entry key="D1" value="665.710081583929" />
+      <entry key="W1" value="763.7391684674261" />
+    </decayedCancelled>
+    <decayedSelected>
+      <entry key="MS100" value="0.0" />
+      <entry key="MS500" value="1.0107448841556165E-120" />
+      <entry key="S2" value="1.0786250572033868E-30" />
+      <entry key="S5" value="1.3577052182788992E-12" />
+      <entry key="S10" value="1.5977256290309996E-6" />
+      <entry key="S30" value="0.018424426522098268" />
+      <entry key="S60" value="0.19300117022715083" />
+      <entry key="M2" value="0.6579841783418339" />
+      <entry key="M5" value="2.39345615061282" />
+      <entry key="M10" value="10.064014987194907" />
+      <entry key="M15" value="21.320714689191103" />
+      <entry key="M30" value="57.164553934333796" />
+      <entry key="H1" value="109.45237997709833" />
+      <entry key="H2" value="164.53804501322114" />
+      <entry key="H4" value="211.90760772267785" />
+      <entry key="D1" value="275.61351368632677" />
+      <entry key="W1" value="290.38835529924967" />
+    </decayedSelected>
+    <decayedShown>
+      <entry key="MS100" value="1.3705211772558794" />
+      <entry key="MS500" value="3.2490368685998074" />
+      <entry key="S2" value="5.488218308177024" />
+      <entry key="S5" value="6.322134813642671" />
+      <entry key="S10" value="6.647376896137399" />
+      <entry key="S30" value="6.90582433292787" />
+      <entry key="S60" value="7.222631978830125" />
+      <entry key="M2" value="7.933911127223442" />
+      <entry key="M5" value="11.13141270705039" />
+      <entry key="M10" value="26.777549474246655" />
+      <entry key="M15" value="49.199735509341416" />
+      <entry key="M30" value="119.27980042005181" />
+      <entry key="H1" value="226.76247799117303" />
+      <entry key="H2" value="371.75551171794956" />
+      <entry key="H4" value="557.7750468397195" />
+      <entry key="D1" value="941.3203885424946" />
+      <entry key="W1" value="1054.1270336282016" />
+    </decayedShown>
+  </component>
+  <component name="ProjectColorInfo">{
+  &quot;associatedIndex&quot;: 0,
+  &quot;fromUser&quot;: false
+}</component>
+  <component name="ProjectId" id="3FDgZuaNGrXBkKCzCN9avGeLNhG" />
+  <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showLibraryContents" value="true" />
+  </component>
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;ASKED_MARK_IGNORED_FILES_AS_EXCLUDED&quot;: &quot;true&quot;,
+    &quot;ASKED_SHARE_PROJECT_CONFIGURATION_FILES&quot;: &quot;true&quot;,
+    &quot;Django Server.backend.executor&quot;: &quot;Run&quot;,
+    &quot;ModuleVcsDetector.initialDetectionPerformed&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.OpenDjangoStructureViewOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.pycharm.django.structure.promotion.once.per.project&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.typescript.service.memoryLimit.init&quot;: &quot;true&quot;,
+    &quot;SHELLCHECK.PATH&quot;: &quot;I do mind&quot;,
+    &quot;codeWithMe.voiceChat.enabledByDefault&quot;: &quot;false&quot;,
+    &quot;com.intellij.ml.llm.matterhorn.ej.ui.settings.DefaultModelSelectionForGA.v1&quot;: &quot;true&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;master&quot;,
+    &quot;junie.onboarding.icon.badge.shown&quot;: &quot;true&quot;,
+    &quot;last_opened_file_path&quot;: &quot;/home/maqsudbek/PycharmProjects/valijon_project2/backend&quot;,
+    &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
+    &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
+    &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
+    &quot;node.js.selected.package.tslint&quot;: &quot;(autodetect)&quot;,
+    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
+    &quot;settings.editor.selected.configurable&quot;: &quot;com.intellij.python.ruff.RuffConfigurable&quot;,
+    &quot;to.speed.mode.migration.done&quot;: &quot;true&quot;,
+    &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
+  },
+  &quot;keyToStringList&quot;: {
+    &quot;DatabaseDriversLRU&quot;: [
+      &quot;postgresql&quot;
+    ]
+  }
+}</component>
+  <component name="RecentsManager">
+    <key name="MoveFile.RECENT_KEYS">
+      <recent name="$PROJECT_DIR$" />
+    </key>
+  </component>
+  <component name="RunManager">
+    <configuration name="backend" type="Python.DjangoServer" factoryName="Django server">
+      <module name="backend" />
+      <option name="ENV_FILES" value="" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="" />
+      <option name="IS_MODULE_SDK" value="false" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <option name="DEBUG_JUST_MY_CODE" value="false" />
+      <option name="RUN_TOOL" value="" />
+      <option name="launchJavascriptDebuger" value="false" />
+      <option name="port" value="8000" />
+      <option name="host" value="" />
+      <option name="additionalOptions" value="" />
+      <option name="browserUrl" value="" />
+      <option name="runTestServer" value="false" />
+      <option name="runNoReload" value="false" />
+      <option name="useCustomRunCommand" value="false" />
+      <option name="customRunCommand" value="" />
+      <method v="2" />
+    </configuration>
+  </component>
+  <component name="SharedIndexes">
+    <attachedChunks>
+      <set>
+        <option value="bundled-python-sdk-c59985aa861c-c2ffad84badb-com.jetbrains.pycharm.pro.sharedIndexes.bundled-PY-261.24374.152" />
+      </set>
+    </attachedChunks>
+  </component>
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="6e30f525-a71a-4c68-aa1d-15e6c19f3e68" name="Changes" comment="" />
+      <created>1781615113462</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1781615113462</updated>
+      <workItem from="1781615114865" duration="2888000" />
+      <workItem from="1781618737492" duration="5445000" />
+      <workItem from="1781676898067" duration="2253000" />
+      <workItem from="1781687466659" duration="14000" />
+      <workItem from="1781687694839" duration="24000" />
+      <workItem from="1781696098698" duration="5232000" />
+      <workItem from="1781702125920" duration="11445000" />
+      <workItem from="1781717263065" duration="529000" />
+      <workItem from="1781730700216" duration="12213000" />
+      <workItem from="1781769577830" duration="4000" />
+      <workItem from="1781769617575" duration="2215000" />
+      <workItem from="1781872341585" duration="294000" />
+      <workItem from="1781872664923" duration="22000" />
+      <workItem from="1781872724082" duration="9886000" />
+      <workItem from="1781939438190" duration="19000" />
+      <workItem from="1781949484126" duration="1638000" />
+      <workItem from="1781956376265" duration="341000" />
+      <workItem from="1781972701694" duration="158000" />
+      <workItem from="1781973286150" duration="201000" />
+      <workItem from="1781973548196" duration="489000" />
+      <workItem from="1782037741627" duration="17000" />
+      <workItem from="1782125165729" duration="6478000" />
+    </task>
+    <task id="LOCAL-00001" summary="change">
+      <option name="closed" value="true" />
+      <created>1781617412970</created>
+      <option name="number" value="00001" />
+      <option name="presentableId" value="LOCAL-00001" />
+      <option name="project" value="LOCAL" />
+      <updated>1781617412970</updated>
+    </task>
+    <task id="LOCAL-00002" summary="change">
+      <option name="closed" value="true" />
+      <created>1781699652629</created>
+      <option name="number" value="00002" />
+      <option name="presentableId" value="LOCAL-00002" />
+      <option name="project" value="LOCAL" />
+      <updated>1781699652629</updated>
+    </task>
+    <task id="LOCAL-00003" summary="change">
+      <option name="closed" value="true" />
+      <created>1781700032647</created>
+      <option name="number" value="00003" />
+      <option name="presentableId" value="LOCAL-00003" />
+      <option name="project" value="LOCAL" />
+      <updated>1781700032647</updated>
+    </task>
+    <task id="LOCAL-00004" summary="change">
+      <option name="closed" value="true" />
+      <created>1781700603647</created>
+      <option name="number" value="00004" />
+      <option name="presentableId" value="LOCAL-00004" />
+      <option name="project" value="LOCAL" />
+      <updated>1781700603648</updated>
+    </task>
+    <task id="LOCAL-00005" summary="change">
+      <option name="closed" value="true" />
+      <created>1781702453240</created>
+      <option name="number" value="00005" />
+      <option name="presentableId" value="LOCAL-00005" />
+      <option name="project" value="LOCAL" />
+      <updated>1781702453240</updated>
+    </task>
+    <task id="LOCAL-00006" summary="change">
+      <option name="closed" value="true" />
+      <created>1781702677921</created>
+      <option name="number" value="00006" />
+      <option name="presentableId" value="LOCAL-00006" />
+      <option name="project" value="LOCAL" />
+      <updated>1781702677921</updated>
+    </task>
+    <task id="LOCAL-00007" summary="change">
+      <option name="closed" value="true" />
+      <created>1781703008317</created>
+      <option name="number" value="00007" />
+      <option name="presentableId" value="LOCAL-00007" />
+      <option name="project" value="LOCAL" />
+      <updated>1781703008317</updated>
+    </task>
+    <task id="LOCAL-00008" summary="change">
+      <option name="closed" value="true" />
+      <created>1781703258244</created>
+      <option name="number" value="00008" />
+      <option name="presentableId" value="LOCAL-00008" />
+      <option name="project" value="LOCAL" />
+      <updated>1781703258244</updated>
+    </task>
+    <task id="LOCAL-00009" summary="change auth">
+      <option name="closed" value="true" />
+      <created>1781704408202</created>
+      <option name="number" value="00009" />
+      <option name="presentableId" value="LOCAL-00009" />
+      <option name="project" value="LOCAL" />
+      <updated>1781704408202</updated>
+    </task>
+    <task id="LOCAL-00010" summary="change auth">
+      <option name="closed" value="true" />
+      <created>1781705080549</created>
+      <option name="number" value="00010" />
+      <option name="presentableId" value="LOCAL-00010" />
+      <option name="project" value="LOCAL" />
+      <updated>1781705080549</updated>
+    </task>
+    <task id="LOCAL-00011" summary="change auth">
+      <option name="closed" value="true" />
+      <created>1781707898239</created>
+      <option name="number" value="00011" />
+      <option name="presentableId" value="LOCAL-00011" />
+      <option name="project" value="LOCAL" />
+      <updated>1781707898239</updated>
+    </task>
+    <task id="LOCAL-00012" summary="change">
+      <option name="closed" value="true" />
+      <created>1781713741437</created>
+      <option name="number" value="00012" />
+      <option name="presentableId" value="LOCAL-00012" />
+      <option name="project" value="LOCAL" />
+      <updated>1781713741437</updated>
+    </task>
+    <task id="LOCAL-00013" summary="change">
+      <option name="closed" value="true" />
+      <created>1781713910631</created>
+      <option name="number" value="00013" />
+      <option name="presentableId" value="LOCAL-00013" />
+      <option name="project" value="LOCAL" />
+      <updated>1781713910631</updated>
+    </task>
+    <task id="LOCAL-00014" summary="model files changes">
+      <option name="closed" value="true" />
+      <created>1781735353610</created>
+      <option name="number" value="00014" />
+      <option name="presentableId" value="LOCAL-00014" />
+      <option name="project" value="LOCAL" />
+      <updated>1781735353610</updated>
+    </task>
+    <task id="LOCAL-00015" summary="model files changes">
+      <option name="closed" value="true" />
+      <created>1781736437465</created>
+      <option name="number" value="00015" />
+      <option name="presentableId" value="LOCAL-00015" />
+      <option name="project" value="LOCAL" />
+      <updated>1781736437465</updated>
+    </task>
+    <task id="LOCAL-00016" summary="backend/apps/models/users.py">
+      <option name="closed" value="true" />
+      <created>1781736816194</created>
+      <option name="number" value="00016" />
+      <option name="presentableId" value="LOCAL-00016" />
+      <option name="project" value="LOCAL" />
+      <updated>1781736816194</updated>
+    </task>
+    <task id="LOCAL-00017" summary="changes">
+      <option name="closed" value="true" />
+      <created>1781737278158</created>
+      <option name="number" value="00017" />
+      <option name="presentableId" value="LOCAL-00017" />
+      <option name="project" value="LOCAL" />
+      <updated>1781737278159</updated>
+    </task>
+    <task id="LOCAL-00018" summary="front and backend settings files changes">
+      <option name="closed" value="true" />
+      <created>1781737852975</created>
+      <option name="number" value="00018" />
+      <option name="presentableId" value="LOCAL-00018" />
+      <option name="project" value="LOCAL" />
+      <updated>1781737852975</updated>
+    </task>
+    <task id="LOCAL-00019" summary="change">
+      <option name="closed" value="true" />
+      <created>1781739665436</created>
+      <option name="number" value="00019" />
+      <option name="presentableId" value="LOCAL-00019" />
+      <option name="project" value="LOCAL" />
+      <updated>1781739665436</updated>
+    </task>
+    <task id="LOCAL-00020" summary="change">
+      <option name="closed" value="true" />
+      <created>1781740970182</created>
+      <option name="number" value="00020" />
+      <option name="presentableId" value="LOCAL-00020" />
+      <option name="project" value="LOCAL" />
+      <updated>1781740970182</updated>
+    </task>
+    <task id="LOCAL-00021" summary="model files changes">
+      <option name="closed" value="true" />
+      <created>1781878609001</created>
+      <option name="number" value="00021" />
+      <option name="presentableId" value="LOCAL-00021" />
+      <option name="project" value="LOCAL" />
+      <updated>1781878609001</updated>
+    </task>
+    <task id="LOCAL-00022" summary="model files changes">
+      <option name="closed" value="true" />
+      <created>1781882207387</created>
+      <option name="number" value="00022" />
+      <option name="presentableId" value="LOCAL-00022" />
+      <option name="project" value="LOCAL" />
+      <updated>1781882207387</updated>
+    </task>
+    <task id="LOCAL-00023" summary="files changes">
+      <option name="closed" value="true" />
+      <created>1782131376092</created>
+      <option name="number" value="00023" />
+      <option name="presentableId" value="LOCAL-00023" />
+      <option name="project" value="LOCAL" />
+      <updated>1782131376093</updated>
+    </task>
+    <option name="localTasksCounter" value="24" />
+    <servers />
+  </component>
+  <component name="TypeScriptGeneratedFilesManager">
+    <option name="version" value="3" />
+  </component>
+  <component name="UnknownFeatures">
+    <option featureType="com.intellij.fileTypeFactory" implementationName="pyproject.toml" />
+  </component>
+  <component name="Vcs.Log.Tabs.Properties">
+    <option name="TAB_STATES">
+      <map>
+        <entry key="MAIN">
+          <value>
+            <State />
+          </value>
+        </entry>
+      </map>
+    </option>
+  </component>
+  <component name="VcsManagerConfiguration">
+    <MESSAGE value="fix: empty seed to bypass error" />
+    <MESSAGE value="fix: remove junk files and add gitignore" />
+    <MESSAGE value="change auth" />
+    <MESSAGE value="Merge remote-tracking branch 'origin/master'&#10;&#10;# Conflicts:&#10;#&#9;backend/apps/models/users.py" />
+    <MESSAGE value="backend/apps/models/users.py" />
+    <MESSAGE value="front file change" />
+    <MESSAGE value="front and backend settings files changes" />
+    <MESSAGE value="Merge remote-tracking branch 'origin/master'" />
+    <MESSAGE value="change" />
+    <MESSAGE value="changes" />
+    <MESSAGE value="model files changes" />
+    <MESSAGE value="files changes" />
+    <option name="LAST_COMMIT_MESSAGE" value="files changes" />
+  </component>
+</project>
